@@ -12,6 +12,9 @@
     "url": "git+https://github.com/lc-cn/web-shot.git"
   },
   "keywords": [],
+  "engines": {
+    "node": "^14"
+  },
   "author": "",
   "license": "ISC",
   "bugs": {
