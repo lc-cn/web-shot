@@ -25,7 +25,7 @@
     "koa": "^2.14.2",
     "koa-bodyparser": "^4.4.1",
     "less": "^4.2.0",
-    "puppeteer": "^21.6.1",
+    "puppeteer-core": "^10.1.0",
     "sass": "^1.69.6",
     "vue-template-compiler": "^2.7.16"
   },
