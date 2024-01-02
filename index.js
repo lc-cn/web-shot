@@ -1,8 +1,8 @@
 const Koa = require('koa');
 const sass = require('sass');
-const chromium = require('@sparticuz/chromium');
+const chromium = require('chrome-aws-lambda');
 const less = require('less');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const KoaBodyParser = require("koa-bodyparser");
 const { compile, parseComponent } = require('vue-template-compiler');
 const Router = require("@koa/router");
@@ -38,22 +38,14 @@ function extractCss(vueComponentCode){
 }
 async function createBrowser(){
 	const connectUrl=process.env.LESSTOKEN?`wss://chrome.browserless.io?token=${process.env.LESSTOKEN}`:''
-	const executePath=process.env.CHROME_EXECUTABLE_PATH || (await chromium.executablePath)
 	if(connectUrl) return await puppeteer.connect({
 		browserWSEndpoint:connectUrl
 	})
 	return await puppeteer.launch({
-		args: chromium.args,
-		executablePath: executePath || (await chromium.executablePath),
+		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+		defaultViewport: chromium.defaultViewport,
+		executablePath: await chromium.executablePath(),
 		headless: true,
-		ignoreHTTPSErrors: true,
-		args: [
-			"--no-sandbox",
-			"--disable-setuid-sandbox",
-			"--disable-dev-shm-usage",
-			"--single-process",
-		],
-		ignoreDefaultArgs: ["--disable-extensions"],
 		ignoreHTTPSErrors: true,
 	})
 }
