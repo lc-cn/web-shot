@@ -26,26 +26,22 @@ function compileSassToCSS(sassCode) {
 	}).css
 }
 function extractCss(vueComponentCode){
-	const reg = /<style([^>]*)>([\s\S]*?)<\/style>/g;
+	const reg = /<style([^>]*)?>([\s\S]*?)<\/style>/g;
     const match = reg.exec(vueComponentCode);
     if(match){
 		const typeReg=/lang=(\S+)/
 	    const [_,type]=typeReg.exec(match[1])||['','css']
-        return [type,[match[2]]]
+        return [type,match[2]]
     }else{
         return
     }
 }
 async function createBrowser(){
-	const connectUrl=process.env.LESSTOKEN?`wss://chrome.browserless.io?token=${process.env.LESSTOKEN}`:''
-	if(connectUrl) return await puppeteer.connect({
-		browserWSEndpoint:connectUrl
-	})
 	return await puppeteer.launch({
 		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
 		defaultViewport: chromium.defaultViewport,
 		executablePath: await chromium.executablePath,
-		headless: true,
+		headless: 'new',
 		ignoreHTTPSErrors: true,
 	})
 }
@@ -91,7 +87,7 @@ async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
 async function renderVueComponentToScreenshot(userVueComponent,config) {
 	const cssInfo=extractCss(userVueComponent)
 	 let styleCode='',styleType='css'
-	if(!cssInfo) {
+	if(cssInfo) {
 		[styleType,styleCode]=cssInfo
 		userVueComponent=userVueComponent.replace(/<style([^>]*)>([\s\S]*?)<\/style>/,'')
 	}
@@ -124,38 +120,210 @@ async function renderUrlToScreenshot(url, {
 }
 const koa = new Koa()
 koa.use(KoaBodyParser()).use(router.routes()).use(router.allowedMethods());
-
-router.all('shot', '', async (ctx, next) => {
+router.get('/url', async (ctx, next) => {
 	const {width = 1920, url = '', height = 1080, ua} = ctx.query || {}
-	const vue=ctx.query.vue||ctx.request?.body?.vue;
-	const html=ctx.query.html||ctx.request.body?.html;
-	const style=ctx.query.style||ctx.request.body?.style
-	const type=ctx.query.style||ctx.request.body?.type
-	let imgBuf=url?await renderUrlToScreenshot(url,{
-		width:+width,
-        height:+height,
+	if(!url) return ctx.throw(400, '请传入url参数')
+	ctx.set('content-type', 'image/png')
+	ctx.body = await renderUrlToScreenshot(url, {
+        width: +width,
+        height: +height,
         ua
-		}):
-		vue? await renderVueComponentToScreenshot(vue,{
-			width:+width,
-			height:+height,
-			ua
-			}):
-			html?
-			await renderHtmlToScreenshot(html,type,style,{
-				width:+width,
-				height:+height,
-				ua
-			}):undefined
-	if(!imgBuf) {
-        ctx.status = 400
-        ctx.body = '参数错误'
-        return
-    }
-	ctx.set('content-type', 'image/png')
-
-	ctx.set('content-type', 'image/png')
-	ctx.body = imgBuf
+    })
+})
+router.all('/vue', async (ctx, next) => {
+	const {width = 1920, height = 1080, ua} = ctx.query || {}
+	const template=ctx.query.template || ctx.request.body.template
+    if(!template) return ctx.throw(400, '请传入template参数')
+    ctx.set('content-type', 'image/png')
+    ctx.body = await renderVueComponentToScreenshot(template, {
+		width: +width,
+        height: +height,
+        ua
+    })
+})
+router.all('html',async (ctx, next) => {
+	const {width = 1920, height = 1080, ua} = ctx.query || {}
+    const html=ctx.query.style||ctx.request.body?.html
+	const type=ctx.query.type
+	const style=ctx.query.style||ctx.request.body?.style
+    if(!html) return ctx.throw(400, '请传入html参数')
+    ctx.set('content-type', 'image/png')
+    ctx.body = await renderHtmlToScreenshot(html,type,style,{
+		width: +width,
+        height: +height,
+        ua
+    })
+})
+router.get('shot', '', async (ctx, next) => {
+	ctx.body=`
+	<html>
+	    <head>
+	        <title>
+	        	web shot
+	    	</title>
+	    	<style type="text/css">
+	    		th,td{
+	    		    border: 1px solid;
+	    			text-align: center;
+	    		}
+			</style>
+	    </head>
+	    <body>
+	    	<h1>welcome to web shot</h1>
+	    	<h2>shot with url</h2>
+	    	<table>
+	    		<tr>
+                    <th>params</th>
+                    <th>type</th>
+                    <th>required</th>
+                    <th>body</th>
+                    <th>desc</th>
+                    <th>default</th>
+                </tr>
+                <tr>
+                    <td>width</td>
+                    <td>number</td>
+                    <td>false</td>
+                    <td>false</td>
+                    <td>viewport width</td>
+                    <td>1920</td>
+				</tr>
+				<tr>
+				    <td>height</td>
+				    <td>number</td>
+                    <td>false</td>
+				    <td>false</td>
+				    <td>viewport height</td>
+				    <td>1080</td>
+				</tr>
+				<tr>
+				    <td>ua</td>
+				    <td>string</td>
+                    <td>false</td>
+				    <td>false</td>
+				    <td>userAgent</td>
+				    <td>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36</td>
+				</tr>
+				<tr>
+				    <td>url</td>
+				    <td>string</td>
+                    <td>true</td>
+				    <td>false</td>
+				    <td>shot url</td>
+				    <td>-</td>
+				</tr>
+            </table>
+            <h3>example</h3>
+            <a href="/url?url=baidu.com" target="_blank">shot baidu.com</a>
+            <h2>shot with vue</h2>
+            <table>
+            	<tr>
+                    <th>params</th>
+                    <th>type</th>
+                    <th>required</th>
+                    <th>body</th>
+                    <th>desc</th>
+                    <th>default</th>
+                </tr>
+                <tr>
+                    <td>width</td>
+                    <td>number</td>
+                    <td>false</td>
+                    <td>false</td>
+                    <td>viewport width</td>
+                    <td>1920</td>
+                </tr>
+                <tr>
+                    <td>height</td>
+                    <td>number</td>
+                    <td>false</td>
+                    <td>false</td>
+                    <td>viewport height</td>
+                    <td>1080</td>
+                </tr>
+                <tr>
+                	<td>ua</td>
+                    <td>string</td>
+                    <td>false</td>
+                    <td>false</td>
+                    <td>userAgent</td>
+                    <td>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36</td>
+                </tr>
+                <tr>
+                    <td>template</td>
+                    <td>string</td>
+                    <td>true</td>
+                    <td>true</td>
+                    <td>vue template</td>
+                    <td>-</td>
+                </tr>
+			</table>
+            <h3>example</h3>
+            <a href="/vue?template=<template><h1>hello world</h1></template><style>h1{color:red;}</style>" target="_blank">shot red h1</a>
+			<h2>shot with html</h2>
+			<table>
+				<tr>
+				    <th>params</th>
+				    <th>type</th>
+				    <th>required</th>
+				    <th>body</th>
+				    <th>desc</th>
+				    <th>default</th>
+				</tr>
+				<tr>
+				    <td>width</td>
+				    <td>number</td>
+				    <td>false</td>
+				    <td>false</td>
+				    <td>viewport width</td>
+				    <td>1920</td>
+				</tr>
+				<tr>
+				    <td>height</td>
+				    <td>number</td>
+				    <td>false</td>
+				    <td>false</td>
+				    <td>viewport height</td>
+				    <td>1080</td>
+				</tr>
+				<tr>
+					<td>ua</td>
+					<td>string</td>
+					<td>false</td>
+					<td>false</td>
+					<td>userAgent</td>
+					<td>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36</td>
+				</tr>
+				<tr>
+					<td>html</td>
+					<td>string</td>
+					<td>true</td>
+					<td>true</td>
+					<td>html</td>
+					<td>-</td>
+				</tr>
+				<tr>
+					<td>type</td>
+                    <td>css | less | sass</td>
+                    <td>false</td>
+                    <td>false</td>
+                    <td>css type</td>
+                    <td>css</td>
+                </tr>
+                <tr>
+                    <td>style</td>
+                    <td>string</td>
+                    <td>false</td>
+                    <td>true</td>
+                    <td>css style</td>
+                    <td>-</td>
+                </tr>
+			</table>
+            <h3>example</h3>
+            <a href="/html?html=<h1>hello world</h1>&style=h1{color:red;}" target="_blank">shot red h1</a>
+	    </body>
+	</html>
+	`
 })
 koa.listen(3030, () => {
 	console.log('服务启动于 http://localhost:3030')
