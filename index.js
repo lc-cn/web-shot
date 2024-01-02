@@ -49,13 +49,18 @@ async function createBrowser(){
 		ignoreHTTPSErrors: true,
 	})
 }
-async function renderHtmlToScreenshot(htmlCode, styleType, styleCode,width,height) {
+async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
+	width,
+	height,
+	ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'
+}) {
 	const browser = await createBrowser()
 	const page = await browser.newPage();
 	await page.setViewport({
 		width,
 		height
 	})
+	await page.setUserAgent(ua)
 	if(styleType==='sass') styleCode=compileSassToCSS(styleCode)
 	if(styleType==='less') styleCode=await compileLessToCss(styleCode)
 	const style=`<style type="text/css">${styleCode}</style>`
@@ -83,7 +88,7 @@ async function renderHtmlToScreenshot(htmlCode, styleType, styleCode,width,heigh
 	return screenshot;
 }
 
-async function renderVueComponentToScreenshot(userVueComponent,width,height) {
+async function renderVueComponentToScreenshot(userVueComponent,config) {
 	const cssInfo=extractCss(userVueComponent)
 	 let styleCode='',styleType='css'
 	if(!cssInfo) {
@@ -93,9 +98,13 @@ async function renderVueComponentToScreenshot(userVueComponent,width,height) {
 	const parsedComponent = parseComponent(userVueComponent);
 
 	const appHtml = `<div id="app">${parsedComponent.template.content}</div>`;
-	return renderHtmlToScreenshot(appHtml,styleType,styleCode,width,height)
+	return renderHtmlToScreenshot(appHtml,styleType,styleCode,config)
 }
-async function renderUrlToScreenshot(url,width,height) {
+async function renderUrlToScreenshot(url, {
+	width,
+	height,
+	ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'
+}) {
 	if(!url.startsWith('http')) url=`http://${url}`
 	const browser = await createBrowser()
     const page = await browser.newPage()
@@ -103,7 +112,7 @@ async function renderUrlToScreenshot(url,width,height) {
         width,
         height
     })
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36')
+    await page.setUserAgent(ua)
     await page.goto(url.toString(), {waitUntil: 'domcontentloaded'})
     const result = await page.screenshot({
         fullPage: true,
@@ -122,10 +131,22 @@ router.all('shot', '', async (ctx, next) => {
 	const html=ctx.query.html||ctx.request.body?.html;
 	const style=ctx.query.style||ctx.request.body?.style
 	const type=ctx.query.style||ctx.request.body?.type
-	let imgBuf=url?await renderUrlToScreenshot(url,+width,+height):
-		vue? await renderVueComponentToScreenshot(vue,+width,+height):
+	let imgBuf=url?await renderUrlToScreenshot(url,{
+		width:+width,
+        height:+height,
+        ua
+		}):
+		vue? await renderVueComponentToScreenshot(vue,{
+			width:+width,
+			height:+height,
+			ua
+			}):
 			html?
-			await renderHtmlToScreenshot(html,type,style,+width,+height):undefined
+			await renderHtmlToScreenshot(html,type,style,{
+				width:+width,
+				height:+height,
+				ua
+			}):undefined
 	if(!imgBuf) {
         ctx.status = 400
         ctx.body = '参数错误'
