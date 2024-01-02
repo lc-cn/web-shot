@@ -37,10 +37,14 @@ function extractCss(vueComponentCode){
     }
 }
 async function createBrowser(){
+	const connectUrl=process.env.LESSTOKEN?`wss://chrome.browserless.io?token=${process.env.LESSTOKEN}`:''
 	const executePath=process.env.CHROME_EXECUTABLE_PATH || (await chromium.executablePath)
+	if(connectUrl) return await puppeteer.connect({
+		browserWSEndpoint:connectUrl
+	})
 	return await puppeteer.launch({
 		args: chromium.args,
-		executablePath: process.env.CHROME_EXECUTABLE_PATH || (await chromium.executablePath),
+		executablePath: executePath || (await chromium.executablePath),
 		headless: true,
 		ignoreHTTPSErrors: true,
 		args: [
