@@ -120,7 +120,7 @@ async function renderUrlToScreenshot(url, {
 }
 const koa = new Koa()
 koa.use(KoaBodyParser()).use(router.routes()).use(router.allowedMethods());
-router.get('/url', async (ctx, next) => {
+router.get('/api/url', async (ctx, next) => {
 	const {width = 1920, url = '', height = 1080, ua} = ctx.query || {}
 	if(!url) return ctx.throw(400, '请传入url参数')
 	ctx.set('content-type', 'image/png')
@@ -130,7 +130,7 @@ router.get('/url', async (ctx, next) => {
         ua
     })
 })
-router.all('/vue', async (ctx, next) => {
+router.all('/api/vue', async (ctx, next) => {
 	const {width = 1920, height = 1080, ua} = ctx.query || {}
 	const template=ctx.query.template || ctx.request.body.template
     if(!template) return ctx.throw(400, '请传入template参数')
@@ -141,7 +141,7 @@ router.all('/vue', async (ctx, next) => {
         ua
     })
 })
-router.all('/html',async (ctx, next) => {
+router.all('/api/html',async (ctx, next) => {
 	const {width = 1920, height = 1080, ua} = ctx.query || {}
     const html=ctx.query.style||ctx.request.body?.html
 	const type=ctx.query.type
