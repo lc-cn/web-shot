@@ -41,7 +41,7 @@ async function createBrowser(){
 		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
 		defaultViewport: chromium.defaultViewport,
 		executablePath: await chromium.executablePath,
-		headless: true,
+		headless: 'new',
 		ignoreHTTPSErrors: true,
 	})
 }
@@ -120,9 +120,9 @@ async function renderUrlToScreenshot(url, {
 }
 const koa = new Koa()
 koa.use(KoaBodyParser()).use(router.routes()).use(router.allowedMethods());
-router.get('/api/url', async (ctx, next) => {
+router.get('url','', async (ctx, next) => {
 	const {width = 1920, url = '', height = 1080, ua} = ctx.query || {}
-	if(!url) return ctx.throw(400, '请传入url参数')
+	if(!url) return next()
 	ctx.set('content-type', 'image/png')
 	ctx.body = await renderUrlToScreenshot(url, {
         width: +width,
@@ -130,10 +130,10 @@ router.get('/api/url', async (ctx, next) => {
         ua
     })
 })
-router.all('/api/vue', async (ctx, next) => {
+router.all('vue','', async (ctx, next) => {
 	const {width = 1920, height = 1080, ua} = ctx.query || {}
 	const template=ctx.query.template || ctx.request.body.template
-    if(!template) return ctx.throw(400, '请传入template参数')
+    if(!template) return next()
     ctx.set('content-type', 'image/png')
     ctx.body = await renderVueComponentToScreenshot(template, {
 		width: +width,
@@ -141,12 +141,12 @@ router.all('/api/vue', async (ctx, next) => {
         ua
     })
 })
-router.all('/api/html',async (ctx, next) => {
+router.all('html','',async (ctx, next) => {
 	const {width = 1920, height = 1080, ua} = ctx.query || {}
     const html=ctx.query.style||ctx.request.body?.html
 	const type=ctx.query.type
 	const style=ctx.query.style||ctx.request.body?.style
-    if(!html) return ctx.throw(400, '请传入html参数')
+    if(!html) return next()
     ctx.set('content-type', 'image/png')
     ctx.body = await renderHtmlToScreenshot(html,type,style,{
 		width: +width,
@@ -154,7 +154,8 @@ router.all('/api/html',async (ctx, next) => {
         ua
     })
 })
-router.get('shot', '', async (ctx, next) => {
+router.get('docs', '', async (ctx, next) => {
+	await next()
 	ctx.body=`
 	<html>
 	    <head>
@@ -214,7 +215,7 @@ router.get('shot', '', async (ctx, next) => {
 				</tr>
             </table>
             <h3>example</h3>
-            <a href="/api/url?url=baidu.com" target="_blank">shot baidu.com</a>
+            <a href="/?url=baidu.com" target="_blank">shot baidu.com</a>
             <h2>shot with vue</h2>
             <table>
             	<tr>
@@ -259,7 +260,7 @@ router.get('shot', '', async (ctx, next) => {
                 </tr>
 			</table>
             <h3>example</h3>
-            <a href="/api/vue?template=<template><h1>hello world</h1></template><style>h1{color:red;}</style>" target="_blank">shot red h1</a>
+            <a href="/?template=<template><h1>hello world</h1></template><style>h1{color:red;}</style>" target="_blank">shot red h1</a>
 			<h2>shot with html</h2>
 			<table>
 				<tr>
@@ -320,7 +321,7 @@ router.get('shot', '', async (ctx, next) => {
                 </tr>
 			</table>
             <h3>example</h3>
-            <a href="/api/html?html=<h1>hello world</h1>&style=h1{color:red;}" target="_blank">shot red h1</a>
+            <a href="/?html=<h1>hello world</h1>&style=h1{color:red;}" target="_blank">shot red h1</a>
 	    </body>
 	</html>
 	`
