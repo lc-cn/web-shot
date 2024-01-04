@@ -214,7 +214,7 @@ router.get('shot', '', async (ctx, next) => {
 				</tr>
             </table>
             <h3>example</h3>
-            <a href="/url?url=baidu.com" target="_blank">shot baidu.com</a>
+            <a href="/api/url?url=baidu.com" target="_blank">shot baidu.com</a>
             <h2>shot with vue</h2>
             <table>
             	<tr>
@@ -259,7 +259,7 @@ router.get('shot', '', async (ctx, next) => {
                 </tr>
 			</table>
             <h3>example</h3>
-            <a href="/vue?template=<template><h1>hello world</h1></template><style>h1{color:red;}</style>" target="_blank">shot red h1</a>
+            <a href="/api/vue?template=<template><h1>hello world</h1></template><style>h1{color:red;}</style>" target="_blank">shot red h1</a>
 			<h2>shot with html</h2>
 			<table>
 				<tr>
@@ -320,7 +320,7 @@ router.get('shot', '', async (ctx, next) => {
                 </tr>
 			</table>
             <h3>example</h3>
-            <a href="/html?html=<h1>hello world</h1>&style=h1{color:red;}" target="_blank">shot red h1</a>
+            <a href="/api/html?html=<h1>hello world</h1>&style=h1{color:red;}" target="_blank">shot red h1</a>
 	    </body>
 	</html>
 	`
