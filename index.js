@@ -20,9 +20,20 @@ const localExecutablePath =
 // 远程执行包
 const remoteExecutablePath =
 	"https://github.com/Sparticuz/chromium/releases/download/v119.0.2/chromium-v119.0.2-pack.tar";
-console.log(localExecutablePath)
 // 运行环境
 const isDev = process.env.NODE_ENV === "development";
+
+async function createBrowser(){
+	return await puppeteer.launch({
+		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+		defaultViewport: chromium.defaultViewport,
+		executablePath: isDev
+			? localExecutablePath
+			: await chromium.executablePath(remoteExecutablePath),
+		headless: 'new',
+		ignoreHTTPSErrors: true,
+	})
+}
 function compileLessToCss(lessCode){
 	return new Promise((resolve,reject)=>{
 		less.render(lessCode,(err,code)=>{
@@ -50,24 +61,12 @@ function extractCss(vueComponentCode){
         return
     }
 }
-async function createBrowser(){
-	return await puppeteer.launch({
-		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
-		defaultViewport: chromium.defaultViewport,
-		executablePath: isDev
-			? localExecutablePath
-			: await chromium.executablePath(remoteExecutablePath),
-		headless: 'new',
-		ignoreHTTPSErrors: true,
-	})
-}
 async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
 	width,
 	height,
 	ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'
 }) {
-	const browser = await createBrowser()
-	const page = await browser.newPage();
+	const page = await browser?.newPage();
 	await page.setViewport({
 		width,
 		height
@@ -87,17 +86,11 @@ async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
     </html>
   `;
 
-	await page.setContent(html);
-
-	// 等待一段时间以确保组件已经渲染
-	await new Promise((resolve)=>setTimeout(resolve,1000))
-
+	await page.setContent(html,{waitUntil:'domcontentloaded'});
 	// 截取屏幕截图
-	const screenshot = await page.screenshot({fullPage: true});
-
-	await browser.close();
-
-	return screenshot;
+	const result=await page.screenshot({fullPage: true});
+	page.close()
+	return result
 }
 
 async function renderVueComponentToScreenshot(userVueComponent,config) {
@@ -118,20 +111,19 @@ async function renderUrlToScreenshot(url, {
 	ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'
 }) {
 	if(!url.startsWith('http')) url=`http://${url}`
-	const browser = await createBrowser()
-    const page = await browser.newPage()
+    const page = await browser?.newPage()
     await page.setViewport({
         width,
         height
     })
     await page.setUserAgent(ua)
-    await page.goto(url.toString(), {waitUntil: 'domcontentloaded'})
+    await page.goto(url.toString(),{waitUntil:'domcontentloaded'})
     const result = await page.screenshot({
         fullPage: true,
         type: 'png',
         encoding: 'binary'
     })
-    page.close()
+	page.close()
     return result
 }
 const koa = new Koa()
@@ -341,7 +333,22 @@ router.get('docs', '', async (ctx, next) => {
 	    </body>
 	</html>
 	`
+});
+(async ()=>{
+	global.browser = await createBrowser()
+	koa.listen(3030, (err) => {
+		if(err){
+			browser.close()
+			throw err
+		}
+		console.log('服务启动于 http://localhost:3030')
+	})
+})()
+process.on('uncaughtException',(e)=>{
+	console.log(e)
+    browser?.close()
 })
-koa.listen(3030, () => {
-	console.log('服务启动于 http://localhost:3030')
+process.on('unhandledRejection',(e)=>{
+    console.log(e)
+    browser?.close()
 })
