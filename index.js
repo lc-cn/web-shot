@@ -25,7 +25,7 @@ const isDev = process.env.NODE_ENV === "development";
 
 async function createBrowser(){
 	return await puppeteer.launch({
-		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security",'--font-render-hinting=none'],
 		defaultViewport: chromium.defaultViewport,
 		executablePath: isDev
 			? localExecutablePath
