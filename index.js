@@ -69,8 +69,8 @@ async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
 }) {
 	const page = await browser?.newPage();
 	await page.setViewport({
-		width,
-		height
+		width:width||1920,
+		height:height||1080
 	})
 	await page.setUserAgent(ua)
 	if(styleType==='sass') styleCode=compileSassToCSS(styleCode)
@@ -115,8 +115,8 @@ async function renderUrlToScreenshot(url, {
 	if(!url.startsWith('http')) url=`http://${url}`
     const page = await browser?.newPage()
     await page.setViewport({
-        width,
-        height
+        width:width||1920,
+        height:height||1080
     })
     await page.setUserAgent(ua)
     await page.goto(url.toString(),{timeout:timeout||10*1000,waitUntil:'networkidle0'})
