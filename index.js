@@ -87,7 +87,7 @@ async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
     </html>
   `;
 
-	await page.setContent(html,{timeout:timeout||10*000,waitUntil:'networkidle0'});
+	await page.setContent(html,{timeout:timeout||10*1000,waitUntil:'networkidle0'});
 	// 截取屏幕截图
 	const result=await page.screenshot({fullPage: true});
 	page.close()
@@ -119,7 +119,7 @@ async function renderUrlToScreenshot(url, {
         height
     })
     await page.setUserAgent(ua)
-    await page.goto(url.toString(),{timeout:timeout||10*000,waitUntil:'networkidle0'})
+    await page.goto(url.toString(),{timeout:timeout||10*1000,waitUntil:'networkidle0'})
     const result = await page.screenshot({
         fullPage: true,
         type: 'png',
@@ -131,41 +131,56 @@ async function renderUrlToScreenshot(url, {
 const koa = new Koa()
 koa.use(KoaBodyParser()).use(router.routes()).use(router.allowedMethods());
 router.get('url','', async (ctx, next) => {
-	const {width = 1920, url = '', height = 1080, ua,timeout=10*000} = ctx.query || {}
+	const {width = 1920, url = '', height = 1080, ua,timeout=10*1000} = ctx.query || {}
 	if(!url) return next()
-	ctx.set('content-type', 'image/png')
-	ctx.body = await renderUrlToScreenshot(url, {
-        width: +width,
-        height: +height,
-		timeout: +timeout,
-        ua
-    })
+	try{
+		ctx.set('content-type', 'image/png')
+		ctx.body = await renderUrlToScreenshot(url, {
+			width: +width,
+			height: +height,
+			timeout: +timeout,
+			ua
+		})
+	}catch (e) {
+		ctx.set('content-type','html')
+		ctx.body=e.message
+	}
 })
 router.all('vue','', async (ctx, next) => {
-	const {width = 1920, height = 1080, ua,timeout=10*000} = ctx.query || {}
+	const {width = 1920, height = 1080, ua,timeout=10*1000} = ctx.query || {}
 	const template=ctx.query.template || ctx.request.body.template
     if(!template) return next()
-    ctx.set('content-type', 'image/png')
-    ctx.body = await renderVueComponentToScreenshot(template, {
-		width: +width,
-        height: +height,
-	    timeout: +timeout,
-        ua
-    })
+    try{
+	    ctx.set('content-type', 'image/png')
+	    ctx.body = await renderVueComponentToScreenshot(template, {
+		    width: +width,
+		    height: +height,
+		    timeout: +timeout,
+		    ua
+	    })
+    }catch (e){
+		ctx.set('content-type','html')
+	    ctx.body=e.message
+    }
 })
 router.all('html','',async (ctx, next) => {
-	const {width = 1920, height = 1080, ua,timeout=10*000} = ctx.query || {}
+	const {width = 1920, height = 1080, ua,timeout=10*1000} = ctx.query || {}
     const html=ctx.query.html||ctx.request.body?.html
 	const type=ctx.query.type
 	const style=ctx.query.style||ctx.request.body?.style
     if(!html) return next()
-    ctx.set('content-type', 'image/png')
-    ctx.body = await renderHtmlToScreenshot(html,type,style,{
-		width: +width,
-        height: +height,
-	    timeout: +timeout,
-        ua
-    })
+    try{
+	    ctx.set('content-type', 'image/png')
+	    ctx.body = await renderHtmlToScreenshot(html,type,style,{
+		    width: +width,
+		    height: +height,
+		    timeout: +timeout,
+		    ua
+	    })
+    }catch (e){
+		ctx.set('content-type','html')
+	    ctx.body=e.message
+    }
 })
 router.get('docs', '', async (ctx, next) => {
 	await next()
