@@ -1,14 +1,28 @@
 const Koa = require('koa');
 const sass = require('sass');
-const chromium = require('chrome-aws-lambda');
+const chromium = require("@sparticuz/chromium-min");
+const puppeteer = require("puppeteer-core");
 const less = require('less');
-const puppeteer = require('puppeteer');
 const KoaBodyParser = require("koa-bodyparser");
 const { compile, parseComponent } = require('vue-template-compiler');
 const Router = require("@koa/router");
 const dotenv=require('dotenv')
 dotenv.config()
 const router = new Router();
+// 本地 Chrome 执行包路径
+const localExecutablePath =
+	process.platform === "win32"
+		? "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+		: process.platform === "linux"
+			? "/usr/bin/google-chrome"
+			: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
+// 远程执行包
+const remoteExecutablePath =
+	"https://github.com/Sparticuz/chromium/releases/download/v119.0.2/chromium-v119.0.2-pack.tar";
+
+// 运行环境
+const isDev = process.env.NODE_ENV === "development";
 function compileLessToCss(lessCode){
 	return new Promise((resolve,reject)=>{
 		less.render(lessCode,(err,code)=>{
@@ -40,7 +54,9 @@ async function createBrowser(){
 	return await puppeteer.launch({
 		args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
 		defaultViewport: chromium.defaultViewport,
-		executablePath: await chromium.executablePath,
+		executablePath: isDev
+			? localExecutablePath
+			: await chromium.executablePath(remoteExecutablePath),
 		headless: 'new',
 		ignoreHTTPSErrors: true,
 	})
