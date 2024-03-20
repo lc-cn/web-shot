@@ -64,6 +64,7 @@ function extractCss(vueComponentCode){
 async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
 	width,
 	height,
+	timeout,
 	ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'
 }) {
 	const page = await browser?.newPage();
@@ -86,7 +87,7 @@ async function renderHtmlToScreenshot(htmlCode, styleType, styleCode, {
     </html>
   `;
 
-	await page.setContent(html,{waitUntil:'domcontentloaded'});
+	await page.setContent(html,{timeout:timeout||3*1000,waitUntil:'networkidle0'});
 	// 截取屏幕截图
 	const result=await page.screenshot({fullPage: true});
 	page.close()
@@ -108,6 +109,7 @@ async function renderVueComponentToScreenshot(userVueComponent,config) {
 async function renderUrlToScreenshot(url, {
 	width,
 	height,
+	timeout,
 	ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'
 }) {
 	if(!url.startsWith('http')) url=`http://${url}`
@@ -117,7 +119,7 @@ async function renderUrlToScreenshot(url, {
         height
     })
     await page.setUserAgent(ua)
-    await page.goto(url.toString(),{waitUntil:'domcontentloaded'})
+    await page.goto(url.toString(),{timeout:timeout||3*1000,waitUntil:'networkidle0'})
     const result = await page.screenshot({
         fullPage: true,
         type: 'png',
@@ -129,28 +131,30 @@ async function renderUrlToScreenshot(url, {
 const koa = new Koa()
 koa.use(KoaBodyParser()).use(router.routes()).use(router.allowedMethods());
 router.get('url','', async (ctx, next) => {
-	const {width = 1920, url = '', height = 1080, ua} = ctx.query || {}
+	const {width = 1920, url = '', height = 1080, ua,timeout=3*1000} = ctx.query || {}
 	if(!url) return next()
 	ctx.set('content-type', 'image/png')
 	ctx.body = await renderUrlToScreenshot(url, {
         width: +width,
         height: +height,
+		timeout: +timeout,
         ua
     })
 })
 router.all('vue','', async (ctx, next) => {
-	const {width = 1920, height = 1080, ua} = ctx.query || {}
+	const {width = 1920, height = 1080, ua,timeout=3*1000} = ctx.query || {}
 	const template=ctx.query.template || ctx.request.body.template
     if(!template) return next()
     ctx.set('content-type', 'image/png')
     ctx.body = await renderVueComponentToScreenshot(template, {
 		width: +width,
         height: +height,
+	    timeout: +timeout,
         ua
     })
 })
 router.all('html','',async (ctx, next) => {
-	const {width = 1920, height = 1080, ua} = ctx.query || {}
+	const {width = 1920, height = 1080, ua,timeout=3*1000} = ctx.query || {}
     const html=ctx.query.html||ctx.request.body?.html
 	const type=ctx.query.type
 	const style=ctx.query.style||ctx.request.body?.style
@@ -159,6 +163,7 @@ router.all('html','',async (ctx, next) => {
     ctx.body = await renderHtmlToScreenshot(html,type,style,{
 		width: +width,
         height: +height,
+	    timeout: +timeout,
         ua
     })
 })
@@ -214,6 +219,14 @@ router.get('docs', '', async (ctx, next) => {
 				    <td>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36</td>
 				</tr>
 				<tr>
+				    <td>timeout</td>
+				    <td>number</td>
+                    <td>false</td>
+				    <td>false</td>
+				    <td>render timeout</td>
+				    <td>3000</td>
+				</tr>
+				<tr>
 				    <td>url</td>
 				    <td>string</td>
                     <td>true</td>
@@ -258,6 +271,14 @@ router.get('docs', '', async (ctx, next) => {
                     <td>userAgent</td>
                     <td>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36</td>
                 </tr>
+				<tr>
+				    <td>timeout</td>
+				    <td>number</td>
+                    <td>false</td>
+				    <td>false</td>
+				    <td>render timeout</td>
+				    <td>3000</td>
+				</tr>
                 <tr>
                     <td>template</td>
                     <td>string</td>
@@ -302,6 +323,14 @@ router.get('docs', '', async (ctx, next) => {
 					<td>false</td>
 					<td>userAgent</td>
 					<td>Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36</td>
+				</tr>
+				<tr>
+				    <td>timeout</td>
+				    <td>number</td>
+                    <td>false</td>
+				    <td>false</td>
+				    <td>render timeout</td>
+				    <td>3000</td>
 				</tr>
 				<tr>
 					<td>html</td>
