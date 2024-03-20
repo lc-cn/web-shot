@@ -20,7 +20,7 @@ const localExecutablePath =
 // 远程执行包
 const remoteExecutablePath =
 	"https://github.com/Sparticuz/chromium/releases/download/v119.0.2/chromium-v119.0.2-pack.tar";
-
+console.log(localExecutablePath)
 // 运行环境
 const isDev = process.env.NODE_ENV === "development";
 function compileLessToCss(lessCode){
@@ -159,7 +159,7 @@ router.all('vue','', async (ctx, next) => {
 })
 router.all('html','',async (ctx, next) => {
 	const {width = 1920, height = 1080, ua} = ctx.query || {}
-    const html=ctx.query.style||ctx.request.body?.html
+    const html=ctx.query.html||ctx.request.body?.html
 	const type=ctx.query.type
 	const style=ctx.query.style||ctx.request.body?.style
     if(!html) return next()
