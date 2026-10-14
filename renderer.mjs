@@ -5,7 +5,8 @@ import { handlePausedRequest,InterceptionMetrics } from './interception.mjs';
 import { NavigationProgress } from './navigation-progress.mjs';
 
 export class ChromeRenderer {
-  constructor(memory, { validateURL=assertPublicURL,retainHistory=false } = {}) {
+  constructor(memory, { validateURL=assertPublicURL,retainHistory=false,
+    headless=process.env.CHROME_HEADLESS_MODE==='shell'?'shell':true } = {}) {
     this.memory = memory; this.browser = null; this.launching = null; this.launches = 0; this.stopping = false;
     this.slots = []; this.prewarming = null; this.waiters = new Set(); this.background = new Set();
     this.hasQueued = () => false;
@@ -13,6 +14,7 @@ export class ChromeRenderer {
     this.warmedOnce=false;
     this.gcTail=Promise.resolve();
     this.retainHistory=retainHistory;
+    this.headless=headless;
   }
   notify() { for (const resolve of this.waiters) resolve(); this.waiters.clear(); }
   async prepare(slot, browser, advertise = true) {
@@ -106,7 +108,7 @@ export class ChromeRenderer {
     if (!this.launching) {
       this.launching = puppeteer.launch({
         executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
-        headless: true, pipe: true, timeout: 20_000,
+        headless: this.headless, pipe: true, timeout: 20_000,
         // Small containers may need Puppeteer's default /tmp fallback. A full VM with sufficient
         // shared memory can opt into Chrome's native shared-memory implementation.
         ignoreDefaultArgs:process.env.CHROME_USE_DEV_SHM==='1'?['--disable-dev-shm-usage']:[],

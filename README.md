@@ -53,3 +53,4 @@ CHROME_PATH=/usr/bin/google-chrome-stable node test/cache-isolation-integration.
 GitHub Actions 运行单元回归与部署脚本语法检查；不执行真实账号操作、生产部署或公网鉴权测试。仓库不包含生产密钥、数据库、截图缓存或请求日志。自行部署时生成自己的日志签名密钥。
 
 冷导航长尾的官方文档、相似案例及单因素实验方案见 [研究记录](docs/cold-navigation-research.md)。
+回收策略、GC 与匹配 headless-shell 的实际交叉对照见 [实验结果](docs/cold-navigation-experiments.md)。
