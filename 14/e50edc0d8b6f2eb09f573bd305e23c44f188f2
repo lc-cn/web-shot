@@ -1,0 +1,29 @@
+test/renderer-settings.test.mjs
+  s_c757df74f34330::t_761c5a40a5cf15 4,15-35
+  s_c757df74f34330::t_34ce1191fb3834 36
+docs/cold-navigation-research.md
+  s_c757df74f34330::t_bf7b2a180d37b3 122-124
+renderer.mjs
+  s_c757df74f34330::t_761c5a40a5cf15 8-9,17,111
+docs/cold-navigation-experiments.md
+  s_c757df74f34330::t_421b3f56272275 1-82,108-116,144-146
+  s_c757df74f34330::t_bf7b2a180d37b3 83-107,117-143
+README.md
+  s_c757df74f34330::t_421b3f56272275 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "14e50edc0d8b6f2eb09f573bd305e23c44f188f2",
+  "prompts": {},
+  "sessions": {
+    "s_c757df74f34330": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12dff-8ae7-74d0-a196-b18b1c903d7a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Class Liu <chunlang.liu@rdc-west.com>"
+    }
+  }
+}
