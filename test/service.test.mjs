@@ -59,10 +59,19 @@ test('bounded LRU evicts old images and expires by TTL', () => {
   assert.equal(cache.get('b'), undefined); assert.equal(cache.bytes,6); now=11; assert.equal(cache.get('a'),undefined);
 });
 test('memory surplus permits temporary pages; low or unknown memory queues', () => {
-  const read = path => path === '/proc/meminfo' ? 'MemAvailable: 512000 kB' : path === '/proc/self/cgroup' ? '0::/service' : '314572800';
+  const read = path => path.endsWith('.pressure') ? 'some avg10=0.00 avg60=0.00 avg300=0.00 total=0' : path === '/proc/meminfo' ? 'MemAvailable: 512000 kB' : path === '/proc/self/cgroup' ? '0::/service' : '314572800';
   const policy = new MemoryPolicy({ read }); assert.equal(policy.capacity(5),6); assert.equal(policy.capacity(6),7); assert.equal(policy.capacity(7),7);
   const low = new MemoryPolicy({ read: path => path === '/proc/meminfo' ? 'MemAvailable: 102400 kB' : read(path) }); assert.equal(low.capacity(5),5);
   assert.equal(new MemoryPolicy({ read: () => { throw new Error(); } }).capacity(5),5);
+});
+test('memory and IO pressure cap renders and prevent temporary page expansion', () => {
+  let io=0,cpu=0;
+  const read=path=>path.endsWith('.pressure') ? `some avg10=${path.endsWith('io.pressure')?io:path.endsWith('cpu.pressure')?cpu:0} avg60=0 avg300=0 total=0` :
+    path==='/proc/meminfo'?'MemAvailable: 512000 kB':path==='/proc/self/cgroup'?'0::/service':'314572800';
+  const healthy=new MemoryPolicy({read,renderMax:3});assert.equal(healthy.renderLimit(),3);assert.equal(healthy.snapshot().temporary_allowed,true);
+  io=30;const busy=new MemoryPolicy({read,renderMax:3});assert.equal(busy.renderLimit(),2);assert.equal(busy.snapshot().temporary_allowed,false);
+  io=0;cpu=30;assert.equal(new MemoryPolicy({read,renderMax:3}).renderLimit(),2);
+  const unknown=new MemoryPolicy({read:()=>{throw new Error();},renderMax:3});assert.equal(unknown.renderLimit(),2);
 });
 test('async SQLite retains exact IP privately, exposes masked IP and persists across restart', async () => {
   const folder = await mkdtemp(join(tmpdir(),'urlshot-'));
@@ -115,6 +124,29 @@ function fakePool(warm=5,expand=false) {
   const memory={warm,max:warm+2,reserveMB:160,pageMB:100,budgetMB:650,snapshot:()=>({temporary_allowed:expand,available_mb:500,service_mb:300})};
   return {renderer,dispatcher:new DomainDispatcher(renderer,memory),resets};
 }
+test('five warm pages obey a two-render permit limit and release permits after failure',async()=>{
+  const {dispatcher,renderer}=fakePool();dispatcher.memory.renderLimit=()=>2;
+  let peak=0;const releases=[];
+  const jobs=Array.from({length:5},(_,n)=>dispatcher.run(async()=>{
+    peak=Math.max(peak,dispatcher.active);await new Promise(resolve=>releases[n]=resolve);
+    if(n===2)throw new Error('fixture failure');return n;
+  },{url:`https://example${n}.com`}).then(value=>value,error=>error.message));
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(dispatcher.active,2);assert.equal(renderer.slots.length,5);assert.equal(dispatcher.queue.length,3);
+  for(let n=0;n<5;n++){
+    while(!releases[n])await new Promise(resolve=>setImmediate(resolve));
+    releases[n]();await new Promise(resolve=>setImmediate(resolve));
+  }
+  assert.deepEqual(await Promise.all(jobs),[0,1,'fixture failure',3,4]);assert.equal(peak,2);assert.equal(dispatcher.active,0);
+  await dispatcher.drain();assert.equal(dispatcher.queue.length,0);
+});
+test('permit waiting uses the existing queue deadline and never leaks a render permit',async()=>{
+  const {dispatcher}=fakePool(2);dispatcher.memory.renderLimit=()=>1;dispatcher.timeout=25;
+  let release;const first=dispatcher.run(()=>new Promise(resolve=>release=resolve),{url:'https://a.com'});
+  await new Promise(resolve=>setImmediate(resolve));
+  await assert.rejects(dispatcher.run(()=>assert.fail('expired task must not render'),{url:'https://b.com'}),{code:'QUEUE_TIMEOUT'});
+  assert.equal(dispatcher.active,1);release();await first;await dispatcher.drain();assert.equal(dispatcher.active,0);
+});
 test('idle pages win over busy same-domain pages; five full pages own five queues', async () => {
   const {dispatcher,renderer}=fakePool();const releases=[],seen=[];
   const task=(domain,n) => dispatcher.run(async (_,slot)=>{seen.push({n,id:slot.id});await new Promise(resolve=>{releases[n]=resolve;});return n;},{url:'https://'+domain});

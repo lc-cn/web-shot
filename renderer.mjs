@@ -9,12 +9,16 @@ export class ChromeRenderer {
     this.hasQueued = () => false;
     this.validateURL=validateURL;
     this.warmedOnce=false;
+    this.gcTail=Promise.resolve();
   }
   notify() { for (const resolve of this.waiters) resolve(); this.waiters.clear(); }
   async prepare(slot, browser, advertise = true) {
     const context = await browser.createBrowserContext();
     try {
       const page = await context.newPage();
+      slot.page=page;slot.viewportKey=null;slot.uaKey=null;
+      await this.configurePage(slot,{device:'pc',deviceExplicit:true,width:1440,height:900,headers:{}});
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8' });
       slot.origins = new Set();
       slot.cdp = await page.createCDPSession();
       page.setDefaultNavigationTimeout(15_000); page.setDefaultTimeout(5000);
@@ -51,6 +55,23 @@ export class ChromeRenderer {
       Object.assign(slot, { context, page, browser, ready: advertise }); this.notify();
     } catch (error) { await context.close().catch(() => {}); throw error; }
   }
+  async configurePage(slot,options) {
+    const preset=devices[options.device];
+    const viewport={width:options.width,height:options.height,deviceScaleFactor:1,isMobile:preset.mobile,hasTouch:preset.mobile};
+    const viewportKey=JSON.stringify(viewport);
+    if(slot.viewportKey!==viewportKey){await slot.page.setViewport(viewport);slot.viewportKey=viewportKey;}
+    const deviceUA=options.device==='phone'?KnownDevices['iPhone 13'].userAgent:
+      options.device==='pad'?KnownDevices['iPad Pro 11'].userAgent:this.pcUA;
+    const ua=!options.deviceExplicit && options.headers?.['user-agent']?options.headers['user-agent']:deviceUA;
+    const settings={userAgent:ua,platform:options.device==='pc'?'Linux x86_64':options.device==='pad'?'iPad':'iPhone'};
+    const uaKey=JSON.stringify(settings);
+    if(slot.uaKey!==uaKey){await slot.page.setUserAgent(settings);slot.uaKey=uaKey;}
+    return ua;
+  }
+  collectGarbage(slot) {
+    const task=this.gcTail.catch(()=>{}).then(()=>slot.cdp.send('HeapProfiler.collectGarbage'));
+    this.gcTail=task.catch(()=>{});return task;
+  }
   async prewarm() {
     const browser = await this.ready();
     if (this.slots.filter(slot => !slot.temporary && slot.browser === browser).length >= this.memory.warm) { this.warmedOnce=true;return; }
@@ -83,7 +104,7 @@ export class ChromeRenderer {
         slot.checks.clear();
       }
       await Promise.all([
-        blank ? slot.cdp.send('HeapProfiler.collectGarbage') : Promise.resolve(),
+        blank ? this.collectGarbage(slot) : Promise.resolve(),
         slot.context.pages().then(pages => Promise.all(pages.filter(page => page !== slot.page).map(page => page.close()))),
       ]);
     };
@@ -98,7 +119,10 @@ export class ChromeRenderer {
       this.launching = puppeteer.launch({
         executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome-stable',
         headless: true, pipe: true, timeout: 20_000,
-        args: ['--disable-dev-shm-usage', '--disable-quic', '--no-first-run', '--disable-background-networking'],
+        // Small containers may need Puppeteer's default /tmp fallback. A full VM with sufficient
+        // shared memory can opt into Chrome's native shared-memory implementation.
+        ignoreDefaultArgs:process.env.CHROME_USE_DEV_SHM==='1'?['--disable-dev-shm-usage']:[],
+        args: ['--disable-quic', '--no-first-run', '--disable-background-networking'],
       }).then(async browser => {
         this.browser = browser; this.launches++;
         this.pcUA = (await browser.userAgent()).replace('HeadlessChrome', 'Chrome');
@@ -122,18 +146,14 @@ export class ChromeRenderer {
     let deadline;
     try {
       const task = async () => {
-        await this.validateURL(options.url);stage('validate');
+        const validated=await this.validateURL(options.url);
+        // The first navigation already passed the current render's public-address validation.
+        // Share that result with interception; other origins still need their own validation.
+        slot.checks.set(new URL(options.url).origin,Promise.resolve(validated));stage('validate');
         if (new URL(options.url).hostname === (process.env.PUBLIC_HOST || 'shot.l2cl.link')) throw new HttpError(400, 'RECURSIVE_TARGET', '不能截图服务自身');
         slot.forward=options; slot.navigationSent=false;
-        const preset = devices[options.device];
-        await page.setViewport({ width: options.width, height: options.height, deviceScaleFactor: 1,
-          isMobile: preset.mobile, hasTouch: preset.mobile });
-        const deviceUA=options.device === 'phone' ? KnownDevices['iPhone 13'].userAgent :
-          options.device === 'pad' ? KnownDevices['iPad Pro 11'].userAgent : this.pcUA;
-        const ua=!options.deviceExplicit && options.headers?.['user-agent'] ? options.headers['user-agent'] : deviceUA;
+        const ua=await this.configurePage(slot,options);
         slot.forward={ ...options,headers:{ ...options.headers,'user-agent':ua } };
-        await page.setUserAgent({ userAgent: ua, platform: options.device === 'pc' ? 'Linux x86_64' : options.device === 'pad' ? 'iPad' : 'iPhone' });
-        await page.setExtraHTTPHeaders({ 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8' });
         stage('setup');
         const response = await page.goto(options.url, { waitUntil: 'domcontentloaded' });
         stage('navigation');

@@ -83,6 +83,38 @@ Worker 可使用 `wrangler versions list` 和 `wrangler rollback` 选择此前�
 
 ## 证书、性能与常见问题
 
+### 约 1GB RAM 的虚拟机
+
+`WARM_PAGES=5` 是预热 Page 数量；`MAX_ACTIVE_RENDERS=3` 是独立的实际渲染上限。
+最近 10 秒的服务 I/O PSI 达到 10%、内存 PSI 达到 1%、CPU PSI 达到 25%，或内存余量不足时，上限下降到 2；
+已开始的任务继续，等待名额的任务沿用 25 秒排队期限。压力未知时也使用较低上限。
+看板分别显示 Page 数量、当前渲染上限和等待名额的 Page。Cookie、站点存储照常清理，
+空闲 Page 回到 about:blank；显式垃圾回收串行执行，避免多个 Page 同时回收。
+
+这类 VM 可单独选择启用内核压缩交换：
+
+```sh
+sudo bash deploy/tune-small-vm.sh
+cat /sys/module/zswap/parameters/enabled
+cat /sys/module/zswap/parameters/max_pool_percent
+sudo systemctl status webshot-zswap --no-pager
+```
+
+该可选脚本需要内核支持 zswap，保留原 swap 文件和 swappiness，限制压缩池最多占 10% RAM，
+开机恢复配置。它不搬移已经在磁盘上的 swap 页，也不保证消除文件缺页或目标网站延迟。
+回滚用 `sudo systemctl disable --now webshot-zswap`；关闭后已有压缩页会在后续访问时逐步释放。
+不要为清空压缩池在小内存 VM 上强制 swapoff。
+
+`CHROME_USE_DEV_SHM=1` 移除 Puppeteer 默认的 `--disable-dev-shm-usage`，使用 Chrome 原生共享内存路径。
+生产 VM 有可写的 477MiB `/dev/shm`，可进行对照测试；64MiB 共享内存的容器保持默认值 0。
+重启应用后生效。Chrome 新版本还可能使用 memfd，不能仅凭参数认定存在磁盘 I/O；
+应核对实际映射和渲染指标。页面默认 viewport、UA 在预热时配置，后续只更新改变的参数。
+首次导航复用本次渲染刚完成的公网地址校验，避免重复 DNS 查询；其它源仍分别校验。
+
+参考：[Linux zswap](https://docs.kernel.org/admin-guide/mm/zswap.html)、
+[PSI 压力指标](https://docs.kernel.org/accounting/psi.html)、
+[Chromium 原生共享内存实现](https://chromium.googlesource.com/chromium/src/base/+/a2890140a9daeccc26b86b9f54332d4db988a74d%5E%21/)。
+
 ```sh
 sudo systemctl status certbot.timer --no-pager
 sudo certbot renew --dry-run

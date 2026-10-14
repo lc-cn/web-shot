@@ -67,11 +67,11 @@ async function update() {
     $('cache-details').textContent='边缘命中 '+(day.edge_cached || 0)+' 次 · 异步统计';
     $('render').textContent = ms(day.render_average_ms); $('p95').textContent = 'P95 ' + ms(day.render_p95_ms) + ' · 仅实际渲染';
     $('chrome').textContent = runtime.browser_ready ? '常驻' : '重连中';
-    $('pages').textContent = runtime.active_pages + ' / ' + runtime.concurrency;
+    $('pages').textContent = runtime.active_pages + ' 渲染 / ' + runtime.concurrency + ' 常驻 · 上限 ' + runtime.render_limit;
     $('queue').textContent = runtime.queued; $('cache').textContent = (data.disk_cache?.items || 0) + ' 张持久缓存 · 内存 ' + (runtime.cache_bytes / 1048576).toFixed(1) + ' MB';
     $('page-queues').replaceChildren(...(runtime.page_queues || []).map(row => {
       const item=document.createElement('span');
-      const states={idle:'空闲',rendering:'渲染中',cleaning:'后台清理',warming:'预热中'};
+      const states={idle:'空闲',rendering:'渲染中',waiting:'等待渲染名额',cleaning:'后台清理',warming:'预热中'};
       item.textContent=`Page ${row.id}${row.temporary?' · 临时':''}：${states[row.state]} · 队列 ${row.queued}${row.domain?' · '+row.domain:''}`;
       return item;
     }));

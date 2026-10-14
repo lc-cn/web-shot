@@ -17,7 +17,9 @@ import { sampleHardware,hardwareWindow } from './diagnostics.mjs';
 const dbPath = process.env.DB_PATH || './data/requests.sqlite';
 await mkdir(dirname(dbPath), { recursive: true, mode: 0o700 });
 const store = new AsyncRequestStore(dbPath);
-const memory = new MemoryPolicy({ warm: Number(process.env.WARM_PAGES || 5), max: Number(process.env.MAX_PAGES || 7) });
+const renderMax=Number(process.env.MAX_ACTIVE_RENDERS || 3);
+if(!Number.isInteger(renderMax)||renderMax<1||renderMax>7)throw new Error('MAX_ACTIVE_RENDERS must be an integer from 1 to 7');
+const memory = new MemoryPolicy({ warm: Number(process.env.WARM_PAGES || 5), max: Number(process.env.MAX_PAGES || 7),renderMax });
 const renderer = new ChromeRenderer(memory);
 const dispatcher = new DomainDispatcher(renderer,memory);
 const shots = new ShotService((options,slot) => renderer.render(options,slot), { queue:dispatcher, persistent:store });
@@ -59,6 +61,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ...statsMemo, runtime: { browser_ready: !!renderer.browser?.connected && renderer.warmedOnce,
         browser_launches: renderer.launches, active_pages: shots.queue.active, queued: shots.queue.queue.length,
         concurrency: shots.queue.concurrency, warm_pages: memory.warm, max_pages: memory.max,
+        render_limit:dispatcher.renderLimit,
         ready_pages: renderer.slots.filter(slot => slot.ready).length, memory: memory.snapshot(),hardware,
         idle_blank_pages:renderer.slots.filter(slot=>slot.ready && slot.page?.url()==='about:blank').length,
         page_queues:dispatcher.stats(),

@@ -6,9 +6,30 @@ export class DomainDispatcher {
   constructor(renderer, memory, { maxQueue = 40, timeout = 25_000 } = {}) {
     Object.assign(this, { renderer, memory, maxQueue, timeout });
     this.active = 0; this.peak = 0; this.sequence = 0; this.background = new Set();
+    this.permits=[];this.permitPoll=null;
   }
-  get queue() { return this.renderer.slots.flatMap(slot => slot.queue || []); }
+  get queue() { return [...this.renderer.slots.flatMap(slot => slot.queue || []),...this.permits.map(waiter=>waiter.item)]; }
   get concurrency() { return this.renderer.slots.length; }
+  get renderLimit() { return this.memory.renderLimit?.() ?? this.memory.max; }
+  pumpPermits() {
+    clearTimeout(this.permitPoll);this.permitPoll=null;
+    while(this.permits.length && this.active<this.renderLimit){
+      const waiter=this.permits.shift();clearTimeout(waiter.timer);this.active++;waiter.resolve();
+    }
+    if(this.permits.length)this.permitPoll=setTimeout(()=>this.pumpPermits(),200);
+  }
+  acquire(item) {
+    return new Promise((resolve,reject)=>{
+      const remaining=this.timeout-(performance.now()-item.at);
+      if(remaining<=0){reject(new HttpError(503,'QUEUE_TIMEOUT','排队超时，请稍后重试'));return;}
+      const waiter={item,resolve,reject};
+      waiter.timer=setTimeout(()=>{
+        const index=this.permits.indexOf(waiter);if(index<0)return;
+        this.permits.splice(index,1);reject(new HttpError(503,'QUEUE_TIMEOUT','排队超时，请稍后重试'));this.pumpPermits();
+      },remaining);
+      this.permits.push(waiter);this.pumpPermits();
+    });
+  }
   initialize(slot) { slot.queue ??= []; slot.id ??= ++this.sequence; return slot; }
   canExpand() {
     const state = this.memory.snapshot(), pendingPages = this.renderer.slots.filter(slot => slot.temporary).length + 1;
@@ -30,6 +51,7 @@ export class DomainDispatcher {
     }
     return new Promise((resolve, reject) => {
       const item = { fn, origin, identity, at:performance.now(), resolve, reject };
+      if (this.queue.length >= this.maxQueue && this.active>=this.renderLimit) return reject(new HttpError(503,'BUSY','截图队列已满，请稍后重试'));
       if (slot) { slot.ready = false; slot.running = true; this.execute(slot, item); return; }
       if (this.queue.length >= this.maxQueue) return reject(new HttpError(503,'BUSY','截图队列已满，请稍后重试'));
       const compatible = slots.filter(candidate => candidate.identity === identity);
@@ -49,17 +71,18 @@ export class DomainDispatcher {
     const next = slot.queue.splice(affinity >= 0 ? affinity : 0,1)[0]; clearTimeout(next.timer); return next;
   }
   async execute(slot, item) {
-    slot.running = true; slot.ready = false;
+    slot.running = false; slot.waiting=true; slot.ready = false;
     slot.origin = item.origin; slot.identity=item.identity;
-    this.active++; this.peak = Math.max(this.peak,this.active);
-    let failed = false;
+    let failed = false,acquired=false;
     try {
+      await this.acquire(item);acquired=true;slot.waiting=false;slot.running=true;
+      this.peak = Math.max(this.peak,this.active);
       if (slot.prepared) { await slot.prepared; slot.prepared = null; }
       const result = await item.fn(performance.now()-item.at, slot);
       item.resolve(result);
     } catch (error) { failed = true; item.reject(error); }
     finally {
-      this.active--; slot.running = false;
+      if(acquired)this.active--;slot.waiting=false;slot.running = false;this.pumpPermits();
       const next = this.takeNext(slot);
       if (next && next.identity === slot.identity && !failed) { this.execute(slot,next); return; }
       slot.resetting = true;
@@ -90,8 +113,8 @@ export class DomainDispatcher {
   }
   stats() {
     return this.renderer.slots.map(slot => ({ id:this.initialize(slot).id, temporary:!!slot.temporary,
-      state:slot.running?'rendering':slot.resetting?'cleaning':slot.ready?'idle':'warming',
-      domain:slot.origin ? new URL(slot.origin).hostname : null, queued:slot.queue?.length || 0 }));
+      state:slot.running?'rendering':slot.waiting?'waiting':slot.resetting?'cleaning':slot.ready?'idle':'warming',
+      domain:slot.origin ? new URL(slot.origin).hostname : null, queued:(slot.queue?.length || 0)+(slot.waiting?1:0) }));
   }
   async drain() { await Promise.allSettled([...this.background]); }
 }

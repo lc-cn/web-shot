@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css?v=diagnostics2"><script src="/dashboard.js?v=diagnostics2" defer></script></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css?v=smallvm1"><script src="/dashboard.js?v=smallvm1" defer></script></head>
 <body><main>
 <header><a href="/" class="brand">URLSHOT<span>网页截图 API</span></a><span id="state" class="state">连接中</span></header>
 <section class="intro"><p class="eyebrow">URL → PNG</p><h1>一个网址，一张截图。</h1><p class="lead">支持 GET、POST、DELETE、PATCH，透传业务 Header 和 Body。默认 PC 视图，自动截取整页高度。</p>
@@ -25,7 +25,7 @@ curl 'https://shot.l2cl.link/example.com?$device=pad&amp;$width=820&amp;$height=
 <div class="diagnostic-grid"><article><h3>本次渲染窗口的服务器资源</h3><div id="request-hardware">历史记录未采集硬件指标</div><p class="note">CPU 计量覆盖整个服务，含同期并发任务和后台清理；没有把等待时间当作 CPU 时间。</p></article><article><h3>服务器实时资源</h3><div id="live-hardware">等待采样</div><p class="note">CPU 取上次看板采样至本次的增量；Steal 表示虚拟机等待宿主机分配 CPU。时间很短时，百分比仅供参考。</p></article></div>
 </section>
 <div class="charts"><article><h3>每小时请求</h3><div id="hours" class="bars" aria-label="最近24小时请求量"></div><div class="axis"><span>24 小时前</span><span>现在</span></div></article><article><h3>请求地区</h3><div id="countries" class="countries">暂无数据</div></article></div>
-<div class="runtime"><span>Chrome <b id="chrome">—</b></span><span>并发 Page <b id="pages">—</b></span><span>排队 <b id="queue">—</b></span><span>缓存 <b id="cache">—</b></span></div>
+<div class="runtime"><span>Chrome <b id="chrome">—</b></span><span>Page <b id="pages">—</b></span><span>排队 <b id="queue">—</b></span><span>缓存 <b id="cache">—</b></span></div>
 <div id="page-queues" class="runtime"></div><div class="section-title"><h3>最近请求</h3><span>IP 脱敏展示 · 时间为浏览器本地时间</span></div>
 <div class="table-wrap"><table class="recent"><thead><tr><th>时间</th><th>IP</th><th>地区</th><th>Method</th><th>目标</th><th>设备 / 尺寸</th><th>结果</th><th>渲染耗时</th><th>响应耗时</th></tr></thead><tbody id="recent"><tr><td colspan="9">暂无请求</td></tr></tbody></table></div>
 </section><footer>URLSHOT <span>数据每 10 秒更新 · SQLite 持久记录 · Geo 来自 Cloudflare</span></footer></main></body></html>

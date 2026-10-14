@@ -1,9 +1,17 @@
 // Explicitly run on the VM. This fixture sends test credentials only to loopback, never to an external site.
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { mkdtemp,mkdir,rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ChromeRenderer } from '../renderer.mjs';
 import { DomainDispatcher } from '../dispatcher.mjs';
 import { optionsFromRequest } from '../core.mjs';
+
+// The fixture must not depend on the invoking user's existing Chrome/Crashpad directories.
+const fixtureDir=await mkdtemp(join(tmpdir(),'webshot-chrome-test-'));
+await Promise.all(['config','cache'].map(name=>mkdir(join(fixtureDir,name))));
+process.env.XDG_CONFIG_HOME=join(fixtureDir,'config');process.env.XDG_CACHE_HOME=join(fixtureDir,'cache');
 
 const echo=http.createServer(async(req,res)=>{
   const chunks=[];for await(const chunk of req)chunks.push(chunk);
@@ -15,7 +23,9 @@ const echo=http.createServer(async(req,res)=>{
 await new Promise(resolve=>echo.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+echo.address().port;
 const memory={warm:1,max:1,snapshot:()=>({temporary_allowed:false})};
+let validations=0;
 const renderer=new ChromeRenderer(memory,{validateURL:async input=>{
+  validations++;
   const url=new URL(input);assert.equal(url.origin,origin,'test validator permits only its own loopback fixture');return url;
 }});
 const dispatcher=new DomainDispatcher(renderer,memory);
@@ -24,7 +34,9 @@ const make=(method,device='pc',auth='fixture-token')=>({...optionsFromRequest('/
   headers:{authorization:'Bearer '+auth,'content-type':'application/octet-stream','x-fixture':'header-ok'},body:payload.toString('base64')});
 async function render(options,check){
   return dispatcher.run(async(_,slot)=>{
+    const beforeValidations=validations;
     const result=await renderer.render(options,slot);
+    assert.equal(validations,beforeValidations+1,'initial navigation reuses the fresh per-render address validation');
     assert.ok(result.diagnostics.network.ttfb_ms>=0);
     assert.ok(Number.isInteger(result.diagnostics.network.resource_count)&&result.diagnostics.network.resource_count>=0);
     assert.equal('name' in result.diagnostics.network,false);
@@ -58,4 +70,4 @@ try {
   await new Promise(resolve=>setImmediate(resolve));release();await Promise.all([first,second,changed]);await dispatcher.drain();
   assert.equal(renderer.launches,1);assert.equal(renderer.slots[0].page.url(),'about:blank');
   console.log('PASS queued same-auth page reuse, auth-switch isolation, resident browser');
-}finally{await dispatcher.drain();await renderer.close();await new Promise(resolve=>echo.close(resolve));}
+}finally{await dispatcher.drain();await renderer.close();await new Promise(resolve=>echo.close(resolve));await rm(fixtureDir,{recursive:true,force:true});}

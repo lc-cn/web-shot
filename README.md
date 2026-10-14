@@ -13,6 +13,7 @@ curl 'https://shot.l2cl.link/example.com?$force=1' -o fresh.png
 - 截图参数使用 `$device`、`$width`、`$height`、`$force`；其它查询参数转发给目标网站。
 - PC / 手机 / 平板默认宽度为 1440 / 390 / 820；省略高度时截取整页。
 - 常驻 Chrome，5 个预热 Page；空闲优先、按域名与鉴权上下文调度，内存允许时最多扩展到 7 个 Page。
+- 预热数量与渲染并发独立：默认最多 3 个同时渲染，CPU、内存或 I/O 压力升高时降到 2 个；清理在后台完成。
 - 图片缓存 30 天，持久图片预算 2GB；公开 GET 可命中 Cloudflare 边缘缓存，鉴权请求保持隔离。
 - SQLite 异步记录访问统计；边缘命中异步回写，日志不存 Header、Body、鉴权或目标查询字符串。
 
