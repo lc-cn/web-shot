@@ -2,6 +2,7 @@ import puppeteer, { KnownDevices } from 'puppeteer-core';
 import { assertPublicURL, devices, HttpError } from './core.mjs';
 import { sampleHardware,hardwareWindow,navigationBreakdown } from './diagnostics.mjs';
 import { handlePausedRequest,InterceptionMetrics } from './interception.mjs';
+import { NavigationProgress } from './navigation-progress.mjs';
 
 export class ChromeRenderer {
   constructor(memory, { validateURL=assertPublicURL,retainHistory=false } = {}) {
@@ -26,6 +27,13 @@ export class ChromeRenderer {
       page.setDefaultNavigationTimeout(15_000); page.setDefaultTimeout(5000);
       await page.setBypassServiceWorker(true);
       slot.mainFrameId=(await slot.cdp.send('Page.getFrameTree')).frameTree.frame.id;
+      await slot.cdp.send('Page.enable');
+      await slot.cdp.send('Network.enable');
+      await slot.cdp.send('Page.setLifecycleEventsEnabled',{enabled:true});
+      for(const [event,handler] of [['Network.requestWillBeSent','request'],['Network.responseReceived','response'],
+        ['Network.loadingFinished','finished'],['Network.loadingFailed','failed'],['Page.lifecycleEvent','lifecycle']]) {
+        slot.cdp.on(event,data=>slot.navigationProgress?.[handler](data));
+      }
       await slot.cdp.send('Fetch.enable',{ patterns:[{ urlPattern:'*',requestStage:'Request' }] });
       const checks=new Map();
       slot.checks=checks;
@@ -65,7 +73,7 @@ export class ChromeRenderer {
     this.warmedOnce=true;
   }
   async reset(slot, { blank = true, clear = true, isolated=false } = {}) {
-    slot.forward=null;
+    slot.forward=null;slot.navigationProgress=null;
     if (slot.tainted || isolated) {
       await slot.context.close(); await this.prepare(slot,await this.ready(),false); slot.tainted=false; return;
     }
@@ -121,7 +129,7 @@ export class ChromeRenderer {
     const stages={},waits={network_idle_timeout:null,lazy_idle_timeout:null,font_timeout:null};let mark=started,pending='validate',network=null;
     const next={validate:'setup',setup:'navigation',navigation:'resources',resources:'capture',capture:null};
     const stage=name=>{const now=performance.now();stages[name]=now-mark;mark=now;pending=next[name];};
-    const diagnostics=()=>({network,waits,interception:slot.interception.snapshot(),hardware:{...hardwareWindow(hardwareStart,sampleHardware()),active_at_start:activeStart,
+    const diagnostics=()=>({network,waits,navigation_progress:slot.navigationProgress?.snapshot()??null,interception:slot.interception.snapshot(),hardware:{...hardwareWindow(hardwareStart,sampleHardware()),active_at_start:activeStart,
       active_at_end:this.slots.filter(item=>item.running).length}});
     const { page } = slot;
     slot.historyEntries=null;
@@ -138,6 +146,7 @@ export class ChromeRenderer {
         const ua=await this.configurePage(slot,options);
         slot.forward={ ...options,headers:{ ...options.headers,'user-agent':ua } };
         stage('setup');
+        slot.navigationProgress=new NavigationProgress(slot.mainFrameId);
         const response = await page.goto(options.url, { waitUntil: 'domcontentloaded' });
         stage('navigation');
         if (response && response.status() >= 400) throw new HttpError(502, 'TARGET_HTTP_ERROR', `目标网站返回 HTTP ${response.status()}`);

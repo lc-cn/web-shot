@@ -150,3 +150,34 @@ sudo nginx -t
 - 边缘统计回写失败会重试，但断网超过重试窗口仍可能缺记录；响应不会等待统计回源完成。
 
 原始 IP、鉴权截图和 `/etc/webshot.env` 只能在源站私有范围查看。Nginx access log 默认关闭，以免把包含目标参数的请求 URI写入日志。
+
+## 小 VM 的稀疏缺页预读
+
+源站的根盘 `sda` 原预读为 2048KiB。32MiB 独立临时文件的交叉缺页对照证明，
+大预读会放大零散访问的物理读取；已对该机选择 128KiB。这是文件预读上限，不改变云盘大小、
+VPU、Chrome 沙箱或网络配置，不保证所有机器和负载都适用。
+
+```sh
+# 先确认根文件系统所在设备及当前预读；本源站的根盘是 sda。
+findmnt -n -o SOURCE /
+lsblk -o NAME,MOUNTPOINTS,RA
+cat /sys/block/sda/queue/read_ahead_kb
+
+# 新部署选择应用时执行一次；脚本核验根盘，已有 unit 时拒绝覆盖。
+sudo bash /opt/webshot/app/deploy/tune-readahead.sh sda
+sudo systemctl restart webshot
+
+# 查看持久设置；停止 unit 会恢复它启动时捕获的原值。
+sudo systemctl status webshot-readahead --no-pager
+sudo systemctl disable --now webshot-readahead
+sudo systemctl restart webshot
+```
+
+Chrome 已打开的文件映射可能使用打开时的预读窗口，因此应用或回滚后重启 Webshot。
+源码回滚不会自动停用独立的系统调优 unit。不要用全局 `drop_caches` 制造生产冷请求，
+也不要将 `ROTA=1` 视为云盘是机械盘的证据。I/O 延迟需结合 `/proc/diskstats`、
+主缺页、进程 D 状态及主文档进度判断。
+
+参考：[Linux read_ahead_kb ABI](https://docs.kernel.org/admin-guide/abi-stable.html)、
+[I/O 计数定义](https://docs.kernel.org/admin-guide/iostats.html)、
+[文件访问建议](https://man7.org/linux/man-pages/man2/posix_fadvise.2.html)。

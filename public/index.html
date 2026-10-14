@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css?v=history1"><script src="/dashboard.js?v=history1" defer></script></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css?v=history1"><script src="/dashboard.js?v=coldnav1" defer></script></head>
 <body><main>
 <header><a href="/" class="brand">URLSHOT<span>网页截图 API</span></a><span id="state" class="state">连接中</span></header>
 <section class="intro"><p class="eyebrow">URL → PNG</p><h1>一个网址，一张截图。</h1><p class="lead">支持 GET、POST、DELETE、PATCH，透传业务 Header 和 Body。默认 PC 视图，自动截取整页高度。</p>
@@ -23,6 +23,7 @@ curl 'https://shot.l2cl.link/example.com?$device=pad&amp;$width=820&amp;$height=
 <p id="diagnostic-summary" class="note">等待分段数据；缓存命中不会启动 Chrome。</p>
 <div class="diagnostic-grid"><article><h3>服务处理阶段</h3><div id="stage-breakdown">暂无数据</div></article><article><h3>主文档网络与页面就绪</h3><div id="network-breakdown">新渲染将显示网络数据</div><p class="note">这是导航阶段的子集，不能与左侧重复相加。首字节包含网络往返与目标站处理；0ms 可能来自连接/缓存复用。</p></article></div>
 <div class="diagnostic-grid"><article><h3>本次渲染窗口的服务器资源</h3><div id="request-hardware">历史记录未采集硬件指标</div><p class="note">CPU 计量覆盖整个服务，含同期并发任务和后台清理；没有把等待时间当作 CPU 时间。</p></article><article><h3>服务器实时资源</h3><div id="live-hardware">等待采样</div><p class="note">CPU 取上次看板采样至本次的增量；Steal 表示虚拟机等待宿主机分配 CPU。时间很短时，百分比仅供参考。</p></article></div>
+<article><h3>主文档导航进度</h3><div id="navigation-progress">新的渲染将显示主文档进度</div><p class="note">事件送达时间从调用导航开始计时，也包含 Chrome / Node 调度延迟；Chrome 内部间隔单独列出。导航超时仍可查看已到达的阶段，空值表示尚未观察到；不记录 URL、Header 或 Body。</p></article>
 <article><h3>请求拦截等待</h3><div id="interception-breakdown">新的渲染将显示拦截耗时</div><p class="note">累计值包含并行请求的重叠等待，不能直接加到导航耗时。这里只计处理器收到事件后的校验和命令等待，不含 Chrome 送达事件前的时间；不记录 URL、Header 或 Body。</p></article>
 </section>
 <div class="charts"><article><h3>每小时请求</h3><div id="hours" class="bars" aria-label="最近24小时请求量"></div><div class="axis"><span>24 小时前</span><span>现在</span></div></article><article><h3>请求地区</h3><div id="countries" class="countries">暂无数据</div></article></div>

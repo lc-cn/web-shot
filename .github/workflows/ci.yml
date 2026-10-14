@@ -14,3 +14,4 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: python3 -m py_compile deploy/*.py
+      - run: for script in deploy/*.sh; do bash -n "$script"; done

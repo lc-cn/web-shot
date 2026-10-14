@@ -46,6 +46,16 @@ function renderDiagnostic() {
     ['已完成资源 / 最慢单个资源',String(network.resource_count??'—')+' / '+ms(network.longest_resource_ms)],
     ['网络 / 懒加载 / 字体等待达到上限',[row.diagnostics?.waits?.network_idle_timeout,row.diagnostics?.waits?.lazy_idle_timeout,row.diagnostics?.waits?.font_timeout].map(value=>value==null?'—':value?'是':'否').join(' / ')]]);
   else $('network-breakdown').textContent='此记录没有网络细分；新渲染会采集。导航失败或浏览器不可用时可能缺失。';
+  const progress=row.diagnostics?.navigation_progress;
+  if(progress)pairs($('navigation-progress'),[
+    ['主文档请求事件送达',ms(progress.request_seen_ms)],['主文档响应事件送达',ms(progress.response_seen_ms)],
+    ['主文档完成事件送达',ms(progress.finished_seen_ms)],['DOM 就绪事件送达',ms(progress.dom_seen_ms)],
+    ['Chrome 请求事件到响应事件',ms(progress.request_to_response_ms)],
+    ['Chrome 响应头到 DOM / 文档下载',ms(progress.response_to_dom_ms)+' / '+ms(progress.download_ms)],
+    ['Chrome DNS / TCP / TLS',[progress.dns_ms,progress.tcp_ms,progress.tls_ms].map(ms).join(' / ')],
+    ['Chrome 发送后等待响应头',ms(progress.headers_wait_ms)],
+    ['响应状态 / 重定向 / 请求失败',`${progress.response_status??'—'} / ${progress.redirects} / ${progress.failed?'是':'否'}`],
+  ]);else $('navigation-progress').textContent='此历史记录未采集主文档进度。';
   const intercept=row.diagnostics?.interception;
   if(intercept)pairs($('interception-breakdown'),[
     ['暂停请求 / 新源校验 / 阻止或失败',`${intercept.paused_requests} / ${intercept.unique_validations} / ${intercept.blocked_requests}`],

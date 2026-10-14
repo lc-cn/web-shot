@@ -14,6 +14,10 @@ await Promise.all(['config','cache'].map(name=>mkdir(join(fixtureDir,name))));
 process.env.XDG_CONFIG_HOME=join(fixtureDir,'config');process.env.XDG_CACHE_HOME=join(fixtureDir,'cache');
 
 const echo=http.createServer(async(req,res)=>{
+  if(req.url==='/hold.js')return;
+  if(req.url==='/blocked'){
+    res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><script src="/hold.js"></script>');return;
+  }
   const chunks=[];for await(const chunk of req)chunks.push(chunk);
   const data={method:req.method,headers:req.headers,body:Buffer.concat(chunks).toString('hex'),url:req.url};
   const escaped=JSON.stringify(data).replaceAll('&','&amp;').replaceAll('<','&lt;');
@@ -39,6 +43,8 @@ async function render(options,check){
     assert.equal(validations,beforeValidations+1,'initial navigation reuses the fresh per-render address validation');
     assert.ok(result.diagnostics.network.ttfb_ms>=0);
     assert.ok(result.diagnostics.interception.paused_requests>=1);
+    assert.equal(result.diagnostics.navigation_progress.response_status,200);
+    assert.ok(result.diagnostics.navigation_progress.dom_seen_ms>=result.diagnostics.navigation_progress.request_seen_ms);
     assert.ok(Number.isInteger(result.diagnostics.network.resource_count)&&result.diagnostics.network.resource_count>=0);
     assert.equal('name' in result.diagnostics.network,false);
     const data=JSON.parse(await slot.page.$eval('#echo',element=>element.textContent));
@@ -72,4 +78,15 @@ try {
   await new Promise(resolve=>setImmediate(resolve));release();await Promise.all([first,second,changed]);await dispatcher.drain();
   assert.equal(renderer.launches,1);assert.equal(renderer.slots[0].page.url(),'about:blank');
   console.log('PASS queued same-auth page reuse, auth-switch isolation, resident browser');
-}finally{await dispatcher.drain();await renderer.close();await new Promise(resolve=>echo.close(resolve));await rm(fixtureDir,{recursive:true,force:true});}
+  const blocked={...optionsFromRequest('/'+encodeURIComponent(origin+'/blocked')+'?$height=900'),method:'GET',headers:{},body:''};
+  await assert.rejects(dispatcher.run(async(_,slot)=>{
+    slot.page.setDefaultNavigationTimeout(800);
+    try{return await renderer.render(blocked,slot);}catch(error){
+      const progress=error.diagnostics.navigation_progress;
+      assert.equal(progress.response_status,200);assert.ok(progress.response_seen_ms>=0);
+      assert.ok(progress.finished_seen_ms>=0);assert.equal(progress.dom_seen_ms,null);
+      assert.equal(error.diagnostics.network,null);
+      console.log('PASS navigation timeout preserves completed main-document progress without DOM readiness');throw error;
+    }
+  },blocked),/Navigation timeout/);
+}finally{await dispatcher.drain();await renderer.close();echo.closeAllConnections();await new Promise(resolve=>echo.close(resolve));await rm(fixtureDir,{recursive:true,force:true});}

@@ -97,6 +97,20 @@ wrangler deploy --config edge/wrangler.jsonc
 非法协议、账号密码、端口、单标签域名及字面量私网地址在缓存读取和 Page 排队前拒绝。
 合法域名仍在渲染前解析并检查全部返回地址，资源请求的公网校验继续执行。
 
+### 导航失败时的主文档进度
+
+`diagnostics.navigation_progress` 不依赖页面执行 `performance` 查询，因此导航超时也可保留
+已观察到的主文档阶段。`request_seen_ms / response_seen_ms / finished_seen_ms / dom_seen_ms`
+是 Node 收到 CDP 事件的时刻，相对于调用 `page.goto`；包含 Chrome 和 Node 的调度延迟。
+`request_to_response_ms` 是 Chrome 请求事件到响应事件的时间戳间隔，不等同于纯网络 TTFB。
+`headers_wait_ms` 来自主文档网络内部计时，表示发送完成到响应头接收完成。
+`download_ms / response_to_dom_ms` 使用网络计时的实际响应头结束作为基线；响应事件生成可能
+晚于传输完成，不能直接用响应事件时间戳计算下载时长。缺失、负值或不适用的阶段为 `null`。
+只保留数值和布尔值；请求 ID、Frame/Loader ID 只在内存中相关联，不进入日志。
+子框架和资源请求不会覆盖主文档进度。重定向次数、HTTP 状态和加载失败标记可辅助判断。
+
+参考：[Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)。
+
 2026-10-14 验收样本（example.com）：同一连接边缘命中完整图片 0.315s、0.311s；默认 GET 复用连接 0.384s，另一次新连接 1.346s。强制刷新完整请求 5.675s，其中实际渲染 4.233s。样本数量较少，不能代表所有网站或所有网络。边缘缓存首次填充仍需回源。17 项回归通过，本机独立真实 Chrome 验证四种 Method、二进制 Body 和鉴权隔离；线上已验证 EDGE-HIT、REFRESH、统计回写和 5 个预热 Page。
 
 ## 可见的耗时与资源诊断
