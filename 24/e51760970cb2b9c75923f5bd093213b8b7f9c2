@@ -1,0 +1,101 @@
+deploy/bootstrap.py
+  s_c757df74f34330::t_0373c5b1f5cf59 1-27
+deploy/install.py
+  s_c757df74f34330::t_50516b06c41154 1-46,48-103
+  s_c757df74f34330::t_41b11cc097bb75 47
+deploy/backup.sh
+  s_c757df74f34330::t_0373c5b1f5cf59 1-16
+docs/deployment.md
+  s_c757df74f34330::t_0373c5b1f5cf59 1-95
+docs/operations.md
+  s_c757df74f34330::t_0373c5b1f5cf59 1-100
+docs/production.md
+  s_c757df74f34330::t_0373c5b1f5cf59 1-43
+deploy/update.sh
+  s_c757df74f34330::t_41b11cc097bb75 1-4,8-28
+  s_c757df74f34330::t_0373c5b1f5cf59 5-7
+.env.example
+  s_c757df74f34330::t_2e8a2ede67d834 1-9
+.github/workflows/ci.yml
+  s_c757df74f34330::t_562d8b0423ac3b 1-16
+.gitignore
+  s_c757df74f34330::t_9fa0163917f78d 1-25
+README.md
+  s_c757df74f34330::t_91dda85f1a0f36 1-49
+cloudflare-ips.json
+  s_c757df74f34330::t_10d8aa4fc9774d 1
+core.mjs
+  s_c757df74f34330::t_9d64fe3b14a77a 1-118
+deploy/egress.py
+  s_c757df74f34330::t_9626a0c652aef5 1-19
+deploy/enable_tls.py
+  s_c757df74f34330::t_5070c12cc87637 1-39
+deploy/templates/webshot-egress.service
+  s_c757df74f34330::t_c9cf70626d931a 1-10
+deploy/templates/webshot-http.conf
+  s_c757df74f34330::t_d05e1ef59280d3 1-10
+deploy/templates/webshot-proxy.conf
+  s_c757df74f34330::t_fa1163df083088 1-10
+deploy/templates/webshot.service
+  s_c757df74f34330::t_b35081c64e0585 1-33
+dispatcher.mjs
+  s_c757df74f34330::t_eb284a0e30774e 1-97
+docs/api.md
+  s_c757df74f34330::t_1e2e2ad6199a4d 1-85
+edge-record.mjs
+  s_c757df74f34330::t_e2ff7906b2de34 1-19
+edge/cache.mjs
+  s_c757df74f34330::t_daf9f5a32a1de4 1-101
+edge/version.mjs
+  s_c757df74f34330::t_da6f0c75bdadd1 1-6
+edge/worker.mjs
+  s_c757df74f34330::t_9e7261389bb9a2 1-16
+edge/wrangler.example.jsonc
+  s_c757df74f34330::t_f8eb46e7ab9a6e 2-14,16-33
+memory.mjs
+  s_c757df74f34330::t_2e698a0c11cd81 1-27
+package-lock.json
+  s_c757df74f34330::t_3e4e56f125edda 1-343
+package.json
+  s_c757df74f34330::t_489e5959748562 2,4-8
+protocol.mjs
+  s_c757df74f34330::t_43420857620e90 1-50
+public/dashboard.js
+  s_c757df74f34330::t_8c37bf5cfb409b 1-54
+public/index.html
+  s_c757df74f34330::t_afa04cecf19f96 1-25
+public/style.css
+  s_c757df74f34330::t_3125a9f2418a2e 1
+renderer.mjs
+  s_c757df74f34330::t_d1a558f3597d45 1-180
+request.mjs
+  s_c757df74f34330::t_d0c4de63614b1a 1-29
+server.mjs
+  s_c757df74f34330::t_a3c607351b89e4 1-119
+store-worker.mjs
+  s_c757df74f34330::t_3d6583ee5802e2 1-73
+store.mjs
+  s_c757df74f34330::t_b185282b15210e 1-73
+test/chrome-integration.mjs
+  s_c757df74f34330::t_b023ab6c17b24c 1-58
+test/edge.test.mjs
+  s_c757df74f34330::t_5e2ad4a0476168 1-77
+test/service.test.mjs
+  s_c757df74f34330::t_d32c1f29320a26 1-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24e51760970cb2b9c75923f5bd093213b8b7f9c2",
+  "prompts": {},
+  "sessions": {
+    "s_c757df74f34330": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12dff-8ae7-74d0-a196-b18b1c903d7a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Class Liu <chunlang.liu@rdc-west.com>"
+    }
+  }
+}
