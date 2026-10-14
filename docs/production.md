@@ -9,13 +9,13 @@
   → Cloudflare Worker（公开 GET 的边缘图片缓存 + 全局内容版本）
   → Nginx HTTPS
   → 127.0.0.1:3030 Node.js
-  → 常驻本地 Chrome / 5 个预热 Page
+  → 常驻本地 chrome-headless-shell / 5 个预热 Page
   → SQLite Worker / 私有图片缓存
 
 边缘命中 → 异步签名统计请求 → 源站 SQLite
 ```
 
-源站使用 Ubuntu 24.04 x86_64，约 1GB RAM、2GB swap。运行时为 Node.js 24.21.0 LTS、本地 Google Chrome 155.0.8059.79；依赖锁定 Puppeteer Core 25.13.0、ipaddr.js 2.5.0。
+源站使用 Ubuntu 24.04 x86_64，约 1GB RAM、2GB swap。运行时为 Node.js 24.21.0 LTS、本地 chrome-headless-shell 155.0.8059.79；完整 Google Chrome 保留供回滚。依赖锁定 Puppeteer Core 25.13.0、ipaddr.js 2.5.0。下文较早章节保留当时的配置与实验结果，最新启用记录见末节。
 
 部署路径是 `/opt/webshot/app`，服务为 `webshot.service`。5 个常驻 Page、最多 7 个 Page，单队列总等待上限 40 项；系统内存不足时排队。实际 systemd 内存限制为 High 700MiB、Max 800MiB、SwapMax 256MiB，生产通过持久属性覆盖实现；仓库模板直接包含同样数值。
 
@@ -176,3 +176,40 @@ Example 样本是自然空闲/文件驻留观察，不能当作新性能调参�
 Worker 版本 `1bbdd2c1-61e9-47ce-8c4c-7dac5087268d`，现有 Secret 与 Durable Object
 命名空间绑定保持一致。源站启动次数 1、5 个槽位全部就绪、无排队、NRestarts=0；
 swappiness=20、预读=128KiB，未更改 GC 策略或浏览器类型。
+
+## headless-shell 正式启用（2026-10-14）
+
+用户明确批准后，于 15:44:48 UTC 启用官方匹配版本的 headless-shell 155.0.8059.79。
+源码为 `14e50ed`；仅调整 `CHROME_PATH` 和 `CHROME_HEADLESS_MODE=shell`，
+EnvironmentFile 权限仍为 0600，其余配置与签名密钥逐项比较一致。
+精确二进制路径及永久 AppArmor 规则见 [实验记录](cold-navigation-experiments.md#已批准并执行的正式启用方案)。
+
+AppArmor 服务已启用开机启动，规则已加载。全部 5 个 renderer 的标签为
+`webshot-headless-experiment (unconfined)`，NoNewPrivs=1、Seccomp=2；
+NoNewPrivileges、ProtectSystem=strict、ProtectHome、PrivateTmp、可写目录和出站隔离保持。
+验收后 5 个 Page 全部就绪且回到空白页，浏览器只启动一次，NRestarts=0。
+memory.events 的 high/max/oom/oom_kill 均为 0；验收快照服务内存约 282MiB、
+系统可用内存约 443MiB。这是当时的快照，不是全天峰值或长期节省比例。
+swappiness=20、预读=128KiB、显式 GC 和 5 个预热 Page 配置未改动。
+
+公网 HTTPS 验收目标为 `https://www.example.com`：
+
+| 场景 | 图片尺寸 | 渲染耗时 | 源站处理耗时（含排队） | 客户端完整返回 |
+| --- | --- | ---: | ---: | ---: |
+| PC 强制刷新 | 1440×900 | 553.6ms | 559.3ms | 11.144s |
+| PC 边缘命中（复用连接，两次） | 1440×900 | 0 | 未进入源站渲染 | 0.892s / 0.954s |
+| 手机强制刷新，默认整页 | 390×943 | 380.4ms | 470.9ms | 1.464s |
+| 平板强制刷新，默认整页 | 820×1180 | 392.1ms | 454.6ms | 2.368s |
+
+全部返回 HTTP 200。PC 刷新与两次边缘命中的 PNG 字节一致，共 87715 字节，
+SHA-256 为 `3e4c59e3e897db56cb91094d01b035019385f7899131679063d823692b941e58`，
+与此前相同目标的完整 Chrome / shell 对照一致。边缘异步统计已写入 SQLite，
+Worker 版本与签名密钥未改变。
+
+首个 PC 请求完整返回仍用了 11.144s，而排队仅 0.6ms、源站处理合计 559.3ms。
+差值涉及尚未分段测量的连接建立、客户端网络、边缘链路或进入源站处理前的等待，
+不能据此认定全部是网络问题，也不能宣布长尾已解决。该 PC 样本仍记录 341 次重大
+缺页和约 24% I/O 压力；小样本结果不能代表任意网站或 p95。
+
+配置备份位于 root 私有目录 `/opt/webshot/backups/headless-activation-20261014T154448Z/`。
+一键回滚命令与独立浏览器更新要求见 [运行与恢复](operations.md#已启用的-headless-shell)。

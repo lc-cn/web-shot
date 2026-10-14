@@ -1,6 +1,6 @@
 # Web Shot / URLSHOT
 
-使用本地常驻 Chrome 提供网页截图 API。在线服务：[shot.l2cl.link](https://shot.l2cl.link)。首页是 API 说明和数据看板，没有网址输入表单。
+使用本地常驻 Chromium 浏览器提供网页截图 API；生产已启用同版本 `chrome-headless-shell`。在线服务：[shot.l2cl.link](https://shot.l2cl.link)。首页是 API 说明和数据看板，没有网址输入表单。
 
 ```sh
 curl 'https://shot.l2cl.link/example.com?$device=phone' -o shot.png

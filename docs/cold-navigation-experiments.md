@@ -113,13 +113,14 @@ Example 三次 PNG 哈希一致。Google 内容与截图哈希变化，不能视
 
 自动审批拒绝了新增 `flags=(unconfined)` 持久 AppArmor 配置的方案，理由是未获明确
 授权的持久安全削弱。后续采用现有 Chrome 配置进行一次性实验；正式启用属于单独的
-部署步骤，不能把临时测试成功理解为已经批准新增持久安全配置。
+部署步骤，不能把临时测试成功理解为已经批准新增持久安全配置。随后用户明确批准了
+下述精确路径的配置，已于 2026-10-14 正式启用；验收见 [生产记录](production.md#headless-shell-正式启用2026-10-14)。
 
-### 正式启用的待批准方案
+### 已批准并执行的正式启用方案
 
 只匹配本次已验证、root 所有的二进制：
 `/opt/webshot/experiments/headless-155.0.8059.79/chrome-headless-shell-linux64/chrome-headless-shell`。
-拟新增 `/etc/apparmor.d/webshot-headless-experiment`：
+已新增 `/etc/apparmor.d/webshot-headless-experiment`：
 
 ```text
 abi <abi/4.0>,
@@ -134,9 +135,9 @@ profile webshot-headless-experiment /opt/webshot/experiments/headless-155.0.8059
 明确批准。范围为精确的浏览器路径，不向 Node 或其它二进制增加该标记。浏览器内部
 沙箱、seccomp、服务 NoNewPrivileges、文件系统保护和出站规则继续保持。
 
-批准后只调整 `/etc/webshot.env` 的 `CHROME_PATH` 与 `CHROME_HEADLESS_MODE=shell`，
-其余配置和签名密钥保留，并在重启后检查 renderer 沙箱、5 个空白 Page、实际截图及
-边缘命中。headless-shell 是单独安装的二进制，后续需单独跟进浏览器安全更新。
+用户批准后只调整 `/etc/webshot.env` 的 `CHROME_PATH` 与 `CHROME_HEADLESS_MODE=shell`，
+其余配置和签名密钥已通过保留校验。重启后的 renderer 沙箱、5 个空白 Page、实际截图及
+边缘命中检查均通过。headless-shell 是单独安装的二进制，后续需单独跟进浏览器安全更新。
 
 回滚顺序：先恢复 `CHROME_PATH=/usr/bin/google-chrome-stable`，移除模式键并重启，
 确认原服务健康；然后卸载新增 AppArmor profile 并删除其文件。原 EnvironmentFile

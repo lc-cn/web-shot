@@ -83,6 +83,32 @@ Worker 可使用 `wrangler versions list` 和 `wrangler rollback` 选择此前�
 
 ## 证书、性能与常见问题
 
+### 已启用的 headless-shell
+
+生产在 `/etc/webshot.env` 中设置 `CHROME_HEADLESS_MODE=shell`，并将 `CHROME_PATH`
+指向 `/opt/webshot/experiments/headless-155.0.8059.79/chrome-headless-shell-linux64/chrome-headless-shell`。
+虽然路径含 `experiments`，该目录已是生产运行时，不能作为临时实验文件删除。
+完整 Google Chrome 仍安装在 `/usr/bin/google-chrome-stable`，用于回滚。
+
+用户已批准精确匹配该二进制的 `/etc/apparmor.d/webshot-headless-experiment` 规则，
+允许它使用 user namespace。服务的 NoNewPrivileges、ProtectSystem、ProtectHome、
+PrivateTmp、可写目录和出站隔离继续生效；5 个 renderer 已验证 Seccomp=2，
+没有启用 `--no-sandbox`。
+
+本次配置回滚：
+
+```sh
+sudo bash /opt/webshot/backups/headless-activation-20261014T154448Z/restore.sh
+```
+
+脚本先恢复原 EnvironmentFile、启动完整 Chrome 并等待健康检查，成功后才卸载新增的
+AppArmor profile 并删除其文件。SQLite 和图片缓存继续保留。该备份目录含签名密钥，
+仅保存在 root 私有目录，不得上传仓库。
+
+headless-shell 来自独立的 Chrome for Testing 安装；系统包管理器更新完整 Google Chrome
+不会更新它。升级时先验证新版本的 API、截图及沙箱，在新路径安装，再同步核对精确路径的
+AppArmor 规则与 `CHROME_PATH`。不要覆盖当前运行的二进制或唯一回滚副本。
+
 ### 约 1GB RAM 的虚拟机
 
 `WARM_PAGES=5` 是预热 Page 数量；`MAX_ACTIVE_RENDERS=3` 是独立的实际渲染上限。
