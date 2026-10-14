@@ -1,0 +1,10 @@
+[Unit]
+Description=Webshot per-user egress isolation
+After=network.target netfilter-persistent.service
+Before=webshot.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/webshot-egress
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css"><script src="/dashboard.js?v=edge1" defer></script></head>
+<body><main>
+<header><a href="/" class="brand">URLSHOT<span>网页截图 API</span></a><span id="state" class="state">连接中</span></header>
+<section class="intro"><p class="eyebrow">URL → PNG</p><h1>一个网址，一张截图。</h1><p class="lead">支持 GET、POST、DELETE、PATCH，透传业务 Header 和 Body。默认 PC 视图，自动截取整页高度。</p>
+<div class="endpoint"><span>GET / POST / DELETE / PATCH</span><code>https://shot.l2cl.link/{domain}?$device=pc&amp;$width=1440</code></div>
+<div class="docs"><div><h2>调用示例</h2><pre><code># PC，默认 1440px 宽，整页高度
+curl 'https://shot.l2cl.link/example.com' -o shot.png
+
+# 手机，默认 390px 宽，整页高度
+curl 'https://shot.l2cl.link/example.com?$device=phone' -o phone.png
+
+# 平板，自定义宽高
+curl 'https://shot.l2cl.link/example.com?$device=pad&amp;$width=820&amp;$height=1180' -o pad.png</code></pre></div>
+<div><h2>参数</h2><table class="params"><tr><th>参数</th><th>默认与行为</th></tr><tr><td>$device</td><td>pc / phone / pad，默认 pc；使用对应 UA 和触控设置</td></tr><tr><td>$width</td><td>可选；PC 1440、手机 390、平板 820px；传入值优先</td></tr><tr><td>$height</td><td>可选；省略时截取 100% 内容高度，传入时截取指定高度</td></tr><tr><td>$force</td><td>可选；$force=1 强制重新渲染并更新缓存，省略时优先读取缓存</td></tr></table><p class="note">$width：100–2560；$height：100–4096。整页上限 30000px 高、3000 万像素。返回 PNG；相同参数持久缓存 30 天；缓存盘上限 2GB，空间不足时淘汰最久未使用的缓存。</p></div></div>
+<p class="note">普通 GET 截图支持 Cloudflare 边缘缓存；携带鉴权、Cookie、自定义业务 Header、Body 或使用其他 Method 时，使用隔离的源站缓存。$force=1 跳过缓存并在成功后更新全局图片版本。边缘命中日志异步回写 SQLite，不等待回源统计。</p>
+<p class="note">Body 上限 1MB；Host、Content-Length 和代理 Header 自动处理；鉴权 Header 仅传给目标同源网站。显式传入 $device 时使用设备 UA，否则透传传入的 User-Agent（缺省为 PC UA）。鉴权、Body 和 Method 均参与缓存隔离。日志仅记录统计字段及 Method。</p><p class="note">支持域名后跟路径，如 <code>/example.com/docs</code>。默认访问 HTTPS；也支持 <code>/https://example.com</code> 或编码后的完整 URL。只有以 <code>$</code> 开头的参数控制截图，其它参数均传给目标网站，例如 <code>/baidu.com?wd=test&amp;$device=phone</code>。仅支持公开网站。</p>
+</section>
+<section class="dashboard"><div class="section-title"><h2>运行数据 <span>最近 24 小时</span></h2><span id="updated">—</span></div>
+<div class="metrics"><article><span>请求量</span><strong id="requests">—</strong><small id="total">累计 —</small></article><article><span>成功率</span><strong id="success">—</strong><small>HTTP 200</small></article><article><span>缓存 / 合并命中率</span><strong id="cached">—</strong><small id="cache-details">避免重复渲染</small></article><article><span>平均渲染耗时</span><strong id="render">—</strong><small id="p95">P95 — · 仅实际渲染</small></article></div>
+<div class="charts"><article><h3>每小时请求</h3><div id="hours" class="bars" aria-label="最近24小时请求量"></div><div class="axis"><span>24 小时前</span><span>现在</span></div></article><article><h3>请求地区</h3><div id="countries" class="countries">暂无数据</div></article></div>
+<div class="runtime"><span>Chrome <b id="chrome">—</b></span><span>并发 Page <b id="pages">—</b></span><span>排队 <b id="queue">—</b></span><span>缓存 <b id="cache">—</b></span></div>
+<div id="page-queues" class="runtime"></div><div class="section-title"><h3>最近请求</h3><span>IP 脱敏展示 · 时间为浏览器本地时间</span></div>
+<div class="table-wrap"><table class="recent"><thead><tr><th>时间</th><th>IP</th><th>地区</th><th>Method</th><th>目标</th><th>设备 / 尺寸</th><th>结果</th><th>渲染耗时</th><th>响应耗时</th></tr></thead><tbody id="recent"><tr><td colspan="9">暂无请求</td></tr></tbody></table></div>
+</section><footer>URLSHOT <span>数据每 10 秒更新 · SQLite 持久记录 · Geo 来自 Cloudflare</span></footer></main></body></html>

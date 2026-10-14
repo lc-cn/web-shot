@@ -1,39 +1,9 @@
 {
-  "name": "web-shot",
+  "name": "urlshot-service",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "start": "node ./index.js",
-    "dev": "cross-env NODE_ENV=development node ./index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lc-cn/web-shot.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/lc-cn/web-shot/issues"
-  },
-  "homepage": "https://github.com/lc-cn/web-shot#readme",
-  "dependencies": {
-    "@koa/router": "^12.0.1",
-    "@sparticuz/chromium-min": "^119.0.2",
-    "dotenv": "^16.3.1",
-    "koa": "^2.14.2",
-    "koa-bodyparser": "^4.4.1",
-    "less": "^4.2.0",
-    "puppeteer-core": "latest",
-    "sass": "^1.69.6",
-    "vue-template-compiler": "^2.7.16"
-  },
-  "devDependencies": {
-    "@types/koa": "^2.13.9",
-    "@types/koa__router": "^12.0.4",
-    "@types/node": "^20.8.3",
-    "cross-env": "^7.0.3"
-  }
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.14.0 <25" },
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs" },
+  "dependencies": { "puppeteer-core": "25.13.0", "ipaddr.js": "2.5.0" }
 }

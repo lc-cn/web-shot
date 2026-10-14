@@ -1,0 +1,34 @@
+{
+  "name": "urlshot-edge",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-14",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "VERSIONS",
+        "class_name": "ShotVersions"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "ShotVersions"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "routes": [
+    {
+      "pattern": "shot.example.com/*",
+      "zone_name": "example.com"
+    }
+  ]
+}
