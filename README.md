@@ -47,6 +47,9 @@ DB_PATH=./data/requests.sqlite CHROME_PATH=/usr/bin/google-chrome-stable npm sta
 ```sh
 # 合成鉴权数据只发送到测试脚本自己创建的回环服务。
 CHROME_PATH=/usr/bin/google-chrome-stable node test/chrome-integration.mjs
+CHROME_PATH=/usr/bin/google-chrome-stable node test/cache-isolation-integration.mjs
 ```
 
 GitHub Actions 运行单元回归与部署脚本语法检查；不执行真实账号操作、生产部署或公网鉴权测试。仓库不包含生产密钥、数据库、截图缓存或请求日志。自行部署时生成自己的日志签名密钥。
+
+冷导航长尾的官方文档、相似案例及单因素实验方案见 [研究记录](docs/cold-navigation-research.md)。

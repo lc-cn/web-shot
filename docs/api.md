@@ -109,6 +109,11 @@ wrangler deploy --config edge/wrangler.jsonc
 只保留数值和布尔值；请求 ID、Frame/Loader ID 只在内存中相关联，不进入日志。
 子框架和资源请求不会覆盖主文档进度。重定向次数、HTTP 状态和加载失败标记可辅助判断。
 
+2026-10-14 起，鉴权/业务 Header、Method、Body、目标查询和设备身份发生变化时，
+无论领取空闲 Page 还是接排队任务，渲染前均使用新的 BrowserContext。同身份空闲任务仍能
+复用 HTTP 资源缓存。公开与私有截图缓存均使用新的内部 scope，全部旧隔离策略图片
+退出命中；源站与 Worker 同步新键，30 天 TTL 继续使用，新版本重新填充缓存。
+
 参考：[Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)。
 
 2026-10-14 验收样本（example.com）：同一连接边缘命中完整图片 0.315s、0.311s；默认 GET 复用连接 0.384s，另一次新连接 1.346s。强制刷新完整请求 5.675s，其中实际渲染 4.233s。样本数量较少，不能代表所有网站或所有网络。边缘缓存首次填充仍需回源。17 项回归通过，本机独立真实 Chrome 验证四种 Method、二进制 Body 和鉴权隔离；线上已验证 EDGE-HIT、REFRESH、统计回写和 5 个预热 Page。

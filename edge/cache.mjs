@@ -1,13 +1,5 @@
-import { optionsFromRequest, forwardHeaders } from '../protocol.mjs';
-
-const publicHeaders = new Set(['accept','accept-language','user-agent','referer','origin','dnt','priority',
-  'sec-fetch-site','sec-fetch-mode','sec-fetch-dest','sec-fetch-user','sec-ch-ua','sec-ch-ua-mobile','sec-ch-ua-platform',
-  'cache-control','pragma']);
-export function publicRequest(options) {
-  if (options.method !== 'GET' || options.body) return false;
-  if (Object.keys(options.headers).some(name => !publicHeaders.has(name))) return false;
-  return ![...new URL(options.url).searchParams.keys()].some(name => /(?:token|auth|secret|password|signature|api.?key)/i.test(name));
-}
+import { optionsFromRequest, forwardHeaders,publicRequest,cacheKeyOptions } from '../protocol.mjs';
+export { publicRequest } from '../protocol.mjs';
 export async function digest(text) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
@@ -27,7 +19,7 @@ export async function describe(request,ctx) {
       }
     }
   }
-  const {force,...keyOptions}=options;
+  const keyOptions=cacheKeyOptions(options);
   return { options,key:await digest(JSON.stringify(keyOptions)),eligible:publicRequest(options) };
 }
 function reply(response,options,edge,started,reason) {

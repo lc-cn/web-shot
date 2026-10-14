@@ -78,6 +78,12 @@ export class DomainDispatcher {
       await this.acquire(item);acquired=true;slot.waiting=false;slot.running=true;
       this.peak = Math.max(this.peak,this.active);
       if (slot.prepared) { await slot.prepared; slot.prepared = null; }
+      // Idle cleanup clears site data, but leaves HTTP caches reusable within this identity.
+      // A different caller must get a fresh context even when this slot is already idle.
+      if(slot.contextIdentity!=null && slot.contextIdentity!==item.identity) {
+        await this.renderer.reset(slot,{isolated:true});
+      }
+      slot.contextIdentity=item.identity;
       const result = await item.fn(performance.now()-item.at, slot);
       item.resolve(result);
     } catch (error) { failed = true; item.reject(error); }

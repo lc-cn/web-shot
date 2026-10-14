@@ -2,7 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { createHash } from 'node:crypto';
 import ipaddr from 'ipaddr.js';
 
-import { HttpError, devices, optionsFromRequest } from './protocol.mjs';
+import { HttpError, devices, optionsFromRequest,cacheKeyOptions } from './protocol.mjs';
 export { HttpError, devices, optionsFromRequest } from './protocol.mjs';
 export function publicAddress(address) {
   try { return ipaddr.process(address.replace(/^\[|\]$/g, '')).range() === 'unicast'; }
@@ -32,8 +32,7 @@ export async function assertPublicURL(input, resolver = lookup) {
   return url;
 }
 export function cacheKey(options) {
-  const { force, ...normalized } = options;
-  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+  return createHash('sha256').update(JSON.stringify(cacheKeyOptions(options))).digest('hex');
 }
 export function maskedIP(ip) {
   try {

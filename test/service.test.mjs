@@ -131,7 +131,7 @@ test('persistent cache survives restart; force bypasses it and expiry remains 30
   await again.close();await rm(folder,{recursive:true,force:true});
 });
 function fakePool(warm=5,expand=false) {
-  const resets=[],renderer={slots:Array.from({length:warm},() => ({ready:true,temporary:false,context:{close:async()=>{}}})),prewarm:async()=>{},ready:async()=>({}),prepare:async slot=>{slot.ready=false;slot.context={close:async()=>{}};},reset:async (slot,options)=>{resets.push({id:slot.id,...options});}};
+  const resets=[],renderer={slots:Array.from({length:warm},() => ({ready:true,temporary:false,context:{close:async()=>{}}})),prewarm:async()=>{},ready:async()=>({}),prepare:async slot=>{slot.ready=false;slot.context={close:async()=>{}};},reset:async (slot,options)=>{resets.push({id:slot.id,...options});if(options.isolated)slot.contextIdentity=null;}};
   const memory={warm,max:warm+2,reserveMB:160,pageMB:100,budgetMB:650,snapshot:()=>({temporary_allowed:expand,available_mb:500,service_mb:300})};
   return {renderer,dispatcher:new DomainDispatcher(renderer,memory),resets};
 }
@@ -178,6 +178,14 @@ test('same identity skips cleanup; changing authentication cleans asynchronously
   const third=dispatcher.run(async()=>{events.push('changed');assert.equal(resets.length,1);return 3;},{...a,headers:{authorization:'b'}});
   await new Promise(resolve=>setImmediate(resolve));release();assert.deepEqual(await Promise.all([first,second,third]),[1,2,3]);
   assert.deepEqual(events,['a','same','changed']);await dispatcher.drain();assert.equal(resets.at(-1).blank,true);
+});
+test('idle pages recreate the context before a changed identity can read browser caches',async()=>{
+  const {dispatcher,resets}=fakePool(1);const a={url:'https://example.com',headers:{'x-user':'a'}};
+  await dispatcher.run(()=>1,a);await dispatcher.drain();
+  await dispatcher.run(()=>2,a);await dispatcher.drain();
+  assert.equal(resets.filter(item=>item.isolated).length,0,'same identity keeps its resource cache');
+  await dispatcher.run(()=>{assert.equal(resets.filter(item=>item.isolated).length,1);return 3;},{...a,headers:{'x-user':'b'}});
+  await dispatcher.drain();
 });
 test('memory surplus creates temporary page only after all resident pages are occupied', async () => {
   const {dispatcher,renderer}=fakePool(1,true);let release;

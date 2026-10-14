@@ -6,6 +6,20 @@ export const devices = {
   phone: { width: 390, height: 844, mobile: true },
   pad: { width: 820, height: 1180, mobile: true },
 };
+const publicHeaders = new Set(['accept','accept-language','user-agent','referer','origin','dnt','priority',
+  'sec-fetch-site','sec-fetch-mode','sec-fetch-dest','sec-fetch-user','sec-ch-ua','sec-ch-ua-mobile','sec-ch-ua-platform',
+  'cache-control','pragma']);
+export function publicRequest(options) {
+  if(options.method!=='GET'||options.body)return false;
+  if(Object.keys(options.headers).some(name=>!publicHeaders.has(name)))return false;
+  return ![...new URL(options.url).searchParams.keys()].some(name=>/(?:token|auth|secret|password|signature|api.?key)/i.test(name));
+}
+export function cacheKeyOptions(options) {
+  const {force,...key}=options;
+  // Both private and anonymous images could contain an old identity's browser-cached response.
+  key.cacheScopeVersion=2;
+  return key;
+}
 export function optionsFromRequest(requestURL) {
   const incoming = new URL(requestURL, 'http://localhost');
   let target;

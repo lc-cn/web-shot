@@ -151,3 +151,28 @@ Steal 58.7%，主文档响应头等待约 91ms、导航 1.579s，此次主要受
 
 预读回滚及源码回滚分别执行，见 `docs/operations.md`。
 最终源码备份 `/opt/webshot/backups/readahead-20261014T101207Z/app.tar`。
+
+## 长尾研究与空闲身份切换修复（2026-10-14）
+
+本轮官方文档、类似 issue、实验优先级和只读文件驻留观察见 `docs/cold-navigation-research.md`。
+性能部分未改变 swappiness、GC 策略、浏览器类型或 5 个预热槽位；6.575s→0.402s 的两个
+Example 样本是自然空闲/文件驻留观察，不能当作新性能调参的效果。
+
+核验缓存清理时发现：原代码只在排队任务切换身份时重建 context，空闲槽位切换身份遗漏。
+合成自定义鉴权 Header 的夹具，目标返回 private,max-age=3600，A→A→B 最后仍显示 A；
+补充 A→匿名夹具也复现旧身份内容。
+已修复为在任务领取后、渲染前核对 context 实际身份；同身份可继续使用 HTTP 缓存，
+所有身份变化都会获得新 context。公开与私有 PNG 均使用 scope v2，绕过全部旧策略图片；
+源站与 Cloudflare Worker 必须同步更新，30 天缓存机制继续使用，新版本重新填充缓存。
+
+32 项单元回归、本机真实 Chrome 和源站 Chrome155 的缓存隔离夹具及完整 API 夹具通过。
+缓存夹具验证同身份只请求一次主文档，换身份请求新的主文档并返回 B 或匿名内容；空闲及排队身份
+切换、二进制 Body、四种方法、设备、尺寸和导航超时进度均已覆盖。合成身份只发送到独立
+测试回环服务，未使用真实凭据；没有据此认定曾经泄露真实数据。
+部署前源码备份 `/opt/webshot/backups/idle-identity-20261014T110640Z/app.tar`。
+
+全部缓存键同步发布后，公网 Example 验证为 REFRESH 1.762s → EDGE-HIT 0.233s / 0.230s，
+三次完整 PNG 均为 87715 字节且哈希一致。这是热态链路验收，不能当作冷导航优化效果。
+Worker 版本 `1bbdd2c1-61e9-47ce-8c4c-7dac5087268d`，现有 Secret 与 Durable Object
+命名空间绑定保持一致。源站启动次数 1、5 个槽位全部就绪、无排队、NRestarts=0；
+swappiness=20、预读=128KiB，未更改 GC 策略或浏览器类型。

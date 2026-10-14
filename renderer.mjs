@@ -19,7 +19,7 @@ export class ChromeRenderer {
     const context = await browser.createBrowserContext();
     try {
       const page = await context.newPage();
-      slot.page=page;slot.viewportKey=null;slot.uaKey=null;
+      slot.page=page;slot.viewportKey=null;slot.uaKey=null;slot.contextIdentity=null;
       await this.configurePage(slot,{device:'pc',deviceExplicit:true,width:1440,height:900,headers:{}});
       await page.setExtraHTTPHeaders({ 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8' });
       slot.origins = new Set();slot.historyEntries=1;

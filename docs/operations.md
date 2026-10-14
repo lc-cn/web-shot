@@ -181,3 +181,9 @@ Chrome 已打开的文件映射可能使用打开时的预读窗口，因此应�
 参考：[Linux read_ahead_kb ABI](https://docs.kernel.org/admin-guide/abi-stable.html)、
 [I/O 计数定义](https://docs.kernel.org/admin-guide/iostats.html)、
 [文件访问建议](https://man7.org/linux/man-pages/man2/posix_fadvise.2.html)。
+
+性能试验回滚应只恢复对应性能参数，保留当前 context 身份隔离和全部 PNG scope v2。
+`idle-identity-20261014T110640Z` 之前的源码备份包含已验证的空闲身份切换缓存缺陷，
+不应直接恢复为生产版本。源站和 Worker 都须保留 scope v2，不能回滚到旧缓存键。
+新版本会自动重新渲染旧 scope 的请求；无需发送 `$force`，旧文件继续由原有到期和
+容量机制清理。Cloudflare 中的旧版本图片不会再被新键命中。
