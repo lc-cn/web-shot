@@ -1,0 +1,51 @@
+docs/operations.md
+  s_c757df74f34330::t_c4f0599275e750 114-133
+README.md
+  s_c757df74f34330::t_c4f0599275e750 17
+core.mjs
+  s_c757df74f34330::t_d4902f8a6414b6 11,21-25,97-98
+test/history-integration.mjs
+  s_c757df74f34330::t_bb230e246260ac 1-68
+public/dashboard.js
+  s_c757df74f34330::t_3d10d0c74363c8 51,83
+  s_c757df74f34330::t_bb230e246260ac 49-50,52-56
+test/service.test.mjs
+  s_c757df74f34330::t_51b857d5c3f1dc 56-66
+renderer.mjs
+  s_c757df74f34330::t_bb230e246260ac 124
+  s_c757df74f34330::t_d4902f8a6414b6 4,7,14,32,105-106,128
+  s_c757df74f34330::t_3d10d0c74363c8 24,76,127
+public/index.html
+  s_c757df74f34330::t_17ad3b7d688215 2
+  s_c757df74f34330::t_bb230e246260ac 26
+server.mjs
+  s_c757df74f34330::t_3d10d0c74363c8 65
+dispatcher.mjs
+  s_c757df74f34330::t_3d10d0c74363c8 117-118
+interception.mjs
+  s_c757df74f34330::t_d4902f8a6414b6 1-45
+test/interception.test.mjs
+  s_c757df74f34330::t_51b857d5c3f1dc 1-29
+docs/api.md
+  s_c757df74f34330::t_c4f0599275e750 85-99
+test/chrome-integration.mjs
+  s_c757df74f34330::t_bb230e246260ac 41,63
+docs/production.md
+  s_c757df74f34330::t_1ab20179d922ac 39,78-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0db9f8311ba4304130c422522bde9f87be06efdd",
+  "prompts": {},
+  "sessions": {
+    "s_c757df74f34330": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12dff-8ae7-74d0-a196-b18b1c903d7a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Class Liu <chunlang.liu@rdc-west.com>"
+    }
+  }
+}
