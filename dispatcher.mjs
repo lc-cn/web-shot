@@ -114,7 +114,8 @@ export class DomainDispatcher {
   stats() {
     return this.renderer.slots.map(slot => ({ id:this.initialize(slot).id, temporary:!!slot.temporary,
       state:slot.running?'rendering':slot.waiting?'waiting':slot.resetting?'cleaning':slot.ready?'idle':'warming',
-      domain:slot.origin ? new URL(slot.origin).hostname : null, queued:(slot.queue?.length || 0)+(slot.waiting?1:0) }));
+      domain:slot.origin ? new URL(slot.origin).hostname : null,history_entries:slot.historyEntries ?? null,
+      queued:(slot.queue?.length || 0)+(slot.waiting?1:0) }));
   }
   async drain() { await Promise.allSettled([...this.background]); }
 }

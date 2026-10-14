@@ -62,6 +62,7 @@ const server = http.createServer(async (req, res) => {
         browser_launches: renderer.launches, active_pages: shots.queue.active, queued: shots.queue.queue.length,
         concurrency: shots.queue.concurrency, warm_pages: memory.warm, max_pages: memory.max,
         render_limit:dispatcher.renderLimit,
+        history_cache_disabled:!renderer.retainHistory,
         ready_pages: renderer.slots.filter(slot => slot.ready).length, memory: memory.snapshot(),hardware,
         idle_blank_pages:renderer.slots.filter(slot=>slot.ready && slot.page?.url()==='about:blank').length,
         page_queues:dispatcher.stats(),

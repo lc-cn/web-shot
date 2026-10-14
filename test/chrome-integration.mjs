@@ -38,6 +38,7 @@ async function render(options,check){
     const result=await renderer.render(options,slot);
     assert.equal(validations,beforeValidations+1,'initial navigation reuses the fresh per-render address validation');
     assert.ok(result.diagnostics.network.ttfb_ms>=0);
+    assert.ok(result.diagnostics.interception.paused_requests>=1);
     assert.ok(Number.isInteger(result.diagnostics.network.resource_count)&&result.diagnostics.network.resource_count>=0);
     assert.equal('name' in result.diagnostics.network,false);
     const data=JSON.parse(await slot.page.$eval('#echo',element=>element.textContent));
@@ -59,6 +60,7 @@ try {
     await render(make(method,device));await dispatcher.drain();
     assert.equal(renderer.slots[0].page.url(),'about:blank');assert.deepEqual(await renderer.slots[0].context.cookies(),[]);
     assert.equal(renderer.slots[0].page,initial,'idle cleanup reuses the same opened page');
+    assert.equal((await renderer.slots[0].cdp.send('Page.getNavigationHistory')).entries.length,1);
     console.log('PASS',method,device,'binary body, auth header, target query, width, full height, about:blank');
   }
   const same=make('POST');let release,signal;const started=new Promise(resolve=>{signal=resolve;});

@@ -53,6 +53,17 @@ test('same request coalesces; cached and failed renders do not create duplicate 
   const failed = new ShotService(async () => { throw new Error('bad'); });
   await assert.rejects(failed.shoot(options)); assert.equal(failed.inflight.size, 0);
 });
+test('structurally invalid and literal private targets never acquire a page or read the cache',async()=>{
+  let queued=0,read=0;
+  const service=new ShotService(()=>assert.fail('invalid target must not render'),{
+    queue:{run(){queued++;assert.fail('invalid target must not queue');}},
+    persistent:{getCache(){read++;assert.fail('invalid target must not read cache');}},
+  });
+  for(const url of ['https://owa/','http://localhost/','http://127.0.0.1/','https://user:pass@example.com/','https://example.com:3000/']){
+    await assert.rejects(service.shoot({...optionsFromRequest('/example.com'),url}),error=>error.status===400);
+  }
+  assert.equal(queued,0);assert.equal(read,0);
+});
 test('bounded LRU evicts old images and expires by TTL', () => {
   let now = 0; const cache = new ImageCache({ maxBytes:6, ttl:10, now:() => now });
   const value = { image:Buffer.from('abc') }; cache.set('a',value); cache.set('b',value); cache.get('a'); cache.set('c',value);

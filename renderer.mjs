@@ -1,15 +1,17 @@
 import puppeteer, { KnownDevices } from 'puppeteer-core';
 import { assertPublicURL, devices, HttpError } from './core.mjs';
 import { sampleHardware,hardwareWindow,navigationBreakdown } from './diagnostics.mjs';
+import { handlePausedRequest,InterceptionMetrics } from './interception.mjs';
 
 export class ChromeRenderer {
-  constructor(memory, { validateURL=assertPublicURL } = {}) {
+  constructor(memory, { validateURL=assertPublicURL,retainHistory=false } = {}) {
     this.memory = memory; this.browser = null; this.launching = null; this.launches = 0; this.stopping = false;
     this.slots = []; this.prewarming = null; this.waiters = new Set(); this.background = new Set();
     this.hasQueued = () => false;
     this.validateURL=validateURL;
     this.warmedOnce=false;
     this.gcTail=Promise.resolve();
+    this.retainHistory=retainHistory;
   }
   notify() { for (const resolve of this.waiters) resolve(); this.waiters.clear(); }
   async prepare(slot, browser, advertise = true) {
@@ -19,7 +21,7 @@ export class ChromeRenderer {
       slot.page=page;slot.viewportKey=null;slot.uaKey=null;
       await this.configurePage(slot,{device:'pc',deviceExplicit:true,width:1440,height:900,headers:{}});
       await page.setExtraHTTPHeaders({ 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8' });
-      slot.origins = new Set();
+      slot.origins = new Set();slot.historyEntries=1;
       slot.cdp = await page.createCDPSession();
       page.setDefaultNavigationTimeout(15_000); page.setDefaultTimeout(5000);
       await page.setBypassServiceWorker(true);
@@ -27,30 +29,7 @@ export class ChromeRenderer {
       await slot.cdp.send('Fetch.enable',{ patterns:[{ urlPattern:'*',requestStage:'Request' }] });
       const checks=new Map();
       slot.checks=checks;
-      slot.cdp.on('Fetch.requestPaused',event => {
-        const handle=async () => {
-          const { requestId,request,resourceType,frameId }=event;
-          if (request.url.startsWith('data:') || request.url.startsWith('blob:') || request.url==='about:blank') return slot.cdp.send('Fetch.continueRequest',{requestId});
-          if (['Media','WebSocket'].includes(resourceType)) return slot.cdp.send('Fetch.failRequest',{requestId,errorReason:'BlockedByClient'});
-          const parsed=new URL(request.url);slot.origins.add(parsed.origin);
-          if (!checks.has(parsed.origin)) checks.set(parsed.origin,this.validateURL(request.url));
-          await checks.get(parsed.origin);
-          const config=slot.forward, overrides={requestId};
-          // Scope all caller headers to the first-party origin, including credentials.
-          if (config && parsed.origin===new URL(config.url).origin) {
-            const headers={};
-            for (const [name,value] of Object.entries(request.headers)) headers[name.toLowerCase()]=value;
-            Object.assign(headers,config.headers);
-            overrides.headers=Object.entries(headers).map(([name,value]) => ({name,value:String(value)}));
-          }
-          if (config && !slot.navigationSent && resourceType==='Document' && frameId===slot.mainFrameId) {
-            slot.navigationSent=true;overrides.method=config.method || 'GET';
-            if (config.body) overrides.postData=config.body; // CDP expects raw bytes encoded as base64.
-          }
-          await slot.cdp.send('Fetch.continueRequest',overrides);
-        };
-        handle().catch(() => slot.cdp.send('Fetch.failRequest',{requestId:event.requestId,errorReason:'BlockedByClient'}).catch(() => {}));
-      });
+      slot.cdp.on('Fetch.requestPaused',event => {handlePausedRequest(slot,event,this.validateURL).catch(()=>{});});
       page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
       Object.assign(slot, { context, page, browser, ready: advertise }); this.notify();
     } catch (error) { await context.close().catch(() => {}); throw error; }
@@ -94,6 +73,7 @@ export class ChromeRenderer {
     const task = async () => {
       await slot.cdp.send('Page.stopLoading');
       if (blank) await slot.page.goto('about:blank', { waitUntil:'domcontentloaded', timeout:5000 });
+      if(blank && !this.retainHistory){await slot.cdp.send('Page.resetNavigationHistory');slot.historyEntries=1;}
       if (clear) {
         const cookies = await slot.context.cookies();
         await Promise.all([
@@ -122,7 +102,8 @@ export class ChromeRenderer {
         // Small containers may need Puppeteer's default /tmp fallback. A full VM with sufficient
         // shared memory can opt into Chrome's native shared-memory implementation.
         ignoreDefaultArgs:process.env.CHROME_USE_DEV_SHM==='1'?['--disable-dev-shm-usage']:[],
-        args: ['--disable-quic', '--no-first-run', '--disable-background-networking'],
+        args: ['--disable-quic', '--no-first-run', '--disable-background-networking',
+          ...(this.retainHistory?[]:['--disable-back-forward-cache'])],
       }).then(async browser => {
         this.browser = browser; this.launches++;
         this.pcUA = (await browser.userAgent()).replace('HeadlessChrome', 'Chrome');
@@ -140,9 +121,11 @@ export class ChromeRenderer {
     const stages={},waits={network_idle_timeout:null,lazy_idle_timeout:null,font_timeout:null};let mark=started,pending='validate',network=null;
     const next={validate:'setup',setup:'navigation',navigation:'resources',resources:'capture',capture:null};
     const stage=name=>{const now=performance.now();stages[name]=now-mark;mark=now;pending=next[name];};
-    const diagnostics=()=>({network,waits,hardware:{...hardwareWindow(hardwareStart,sampleHardware()),active_at_start:activeStart,
+    const diagnostics=()=>({network,waits,interception:slot.interception.snapshot(),hardware:{...hardwareWindow(hardwareStart,sampleHardware()),active_at_start:activeStart,
       active_at_end:this.slots.filter(item=>item.running).length}});
     const { page } = slot;
+    slot.historyEntries=null;
+    slot.interception=new InterceptionMetrics();
     let deadline;
     try {
       const task = async () => {

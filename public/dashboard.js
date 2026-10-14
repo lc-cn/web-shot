@@ -46,6 +46,14 @@ function renderDiagnostic() {
     ['已完成资源 / 最慢单个资源',String(network.resource_count??'—')+' / '+ms(network.longest_resource_ms)],
     ['网络 / 懒加载 / 字体等待达到上限',[row.diagnostics?.waits?.network_idle_timeout,row.diagnostics?.waits?.lazy_idle_timeout,row.diagnostics?.waits?.font_timeout].map(value=>value==null?'—':value?'是':'否').join(' / ')]]);
   else $('network-breakdown').textContent='此记录没有网络细分；新渲染会采集。导航失败或浏览器不可用时可能缺失。';
+  const intercept=row.diagnostics?.interception;
+  if(intercept)pairs($('interception-breakdown'),[
+    ['暂停请求 / 新源校验 / 阻止或失败',`${intercept.paused_requests} / ${intercept.unique_validations} / ${intercept.blocked_requests}`],
+    ['校验等待：累计 / 最长',ms(intercept.validation_total_ms)+' / '+ms(intercept.validation_max_ms)],
+    ['放行/中止命令：累计 / 最长',ms(intercept.cdp_total_ms)+' / '+ms(intercept.cdp_max_ms)],
+    ['处理器：累计 / 最长',ms(intercept.handler_total_ms)+' / '+ms(intercept.handler_max_ms)],
+    ['采样时仍在处理',String(intercept.inflight)],
+  ]);else $('interception-breakdown').textContent='此历史记录未采集拦截等待。';
   hardware($('request-hardware'),row.diagnostics?.hardware);
 }
 $('diagnostic-request').addEventListener('change',renderDiagnostic);
@@ -72,7 +80,7 @@ async function update() {
     $('page-queues').replaceChildren(...(runtime.page_queues || []).map(row => {
       const item=document.createElement('span');
       const states={idle:'空闲',rendering:'渲染中',waiting:'等待渲染名额',cleaning:'后台清理',warming:'预热中'};
-      item.textContent=`Page ${row.id}${row.temporary?' · 临时':''}：${states[row.state]} · 队列 ${row.queued}${row.domain?' · '+row.domain:''}`;
+      item.textContent=`Page ${row.id}${row.temporary?' · 临时':''}：${states[row.state]} · 队列 ${row.queued}${row.history_entries!=null?' · 历史 '+row.history_entries:''}${row.domain?' · '+row.domain:''}`;
       return item;
     }));
     $('updated').textContent = '更新于 ' + new Date().toLocaleTimeString();

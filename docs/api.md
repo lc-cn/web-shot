@@ -82,6 +82,21 @@ wrangler deploy --config edge/wrangler.jsonc
 
 官方依据：[Workers Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/)、[Durable Objects](https://developers.cloudflare.com/durable-objects/)、[Puppeteer 等待机制](https://pptr.dev/api/puppeteer.waitfornetworkidleoptions)。
 
+### 拦截等待与历史清理
+
+新渲染的 `diagnostics.interception` 仅包含数值：暂停请求数、新源校验数、阻止/失败数、
+采样时未完成数，以及校验等待、CDP 放行/中止命令、完整处理器的累计/最长毫秒数。
+累计值包含并行请求的重叠等待，不能直接相加为导航关键路径；也不包含 Chrome
+将暂停事件送达 Node 之前的等待。不保存资源 URL、Header、Body 或请求 ID。
+
+`runtime.history_cache_disabled` 表示服务关闭了浏览器 BFCache；空闲 Page 的
+`page_queues[].history_entries=1` 表示已清理到仅保留当前 about:blank。
+截图服务不需要浏览器后退恢复旧文档，因此关闭历史页面保留；Chrome HTTP 资源缓存、
+同身份排队复用以及 30 天截图缓存仍保留。
+
+非法协议、账号密码、端口、单标签域名及字面量私网地址在缓存读取和 Page 排队前拒绝。
+合法域名仍在渲染前解析并检查全部返回地址，资源请求的公网校验继续执行。
+
 2026-10-14 验收样本（example.com）：同一连接边缘命中完整图片 0.315s、0.311s；默认 GET 复用连接 0.384s，另一次新连接 1.346s。强制刷新完整请求 5.675s，其中实际渲染 4.233s。样本数量较少，不能代表所有网站或所有网络。边缘缓存首次填充仍需回源。17 项回归通过，本机独立真实 Chrome 验证四种 Method、二进制 Body 和鉴权隔离；线上已验证 EDGE-HIT、REFRESH、统计回写和 5 个预热 Page。
 
 ## 可见的耗时与资源诊断

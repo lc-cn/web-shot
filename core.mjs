@@ -8,7 +8,7 @@ export function publicAddress(address) {
   try { return ipaddr.process(address.replace(/^\[|\]$/g, '')).range() === 'unicast'; }
   catch { return false; }
 }
-export async function assertPublicURL(input, resolver = lookup) {
+export function assertTargetURL(input) {
   let url;
   try { url = new URL(input); } catch { throw new HttpError(400, 'INVALID_URL', '域名或网址无效'); }
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port) {
@@ -18,6 +18,11 @@ export async function assertPublicURL(input, resolver = lookup) {
   if (host === 'localhost' || host.endsWith('.localhost') || !host.includes('.') && !host.includes(':')) {
     throw new HttpError(400, 'PRIVATE_TARGET', '仅支持公网网站');
   }
+  if(ipaddr.isValid(host) && !publicAddress(host))throw new HttpError(400,'PRIVATE_TARGET','仅支持公网网站');
+  return url;
+}
+export async function assertPublicURL(input, resolver = lookup) {
+  const url=assertTargetURL(input),host=url.hostname.replace(/^\[|\]$/g,'').toLowerCase();
   let addresses;
   try { addresses = ipaddr.isValid(host) ? [{ address: host }] : await resolver(host, { all: true }); }
   catch { throw new HttpError(400, 'DNS_FAILED', '无法解析目标域名'); }
@@ -89,6 +94,8 @@ export class ShotService {
     this.persistent = persistent;
   }
   async shoot(options) {
+    // Cheap checks precede cache I/O and page admission. DNS and subresource validation remain in the renderer.
+    assertTargetURL(options.url);
     const key = cacheKey(options), flightKey = (options.force ? 'force:' : '') + key;
     if (!options.force) {
       const cached = this.cache.get(key);

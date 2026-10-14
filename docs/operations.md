@@ -111,6 +111,26 @@ sudo systemctl status webshot-zswap --no-pager
 应核对实际映射和渲染指标。页面默认 viewport、UA 在预热时配置，后续只更新改变的参数。
 首次导航复用本次渲染刚完成的公网地址校验，避免重复 DNS 查询；其它源仍分别校验。
 
+浏览器关闭 BackForwardCache，并在空闲导航到 about:blank 后调用
+`Page.resetNavigationHistory` 丢弃旧文档历史。保留 Page 对象不代表旧文档已经释放，
+仅对当前空白页执行 GC 也不能证明历史文档被清除。查看看板中的历史条目，以及
+新渲染的“请求拦截等待”指标。BFCache 与 HTTP 静态资源缓存、30 天 PNG 缓存相互独立。
+
+固定页面对照与真实浏览器协议回归可分别运行：
+
+```sh
+CHROME_USE_DEV_SHM=1 node test/history-integration.mjs
+CHROME_USE_DEV_SHM=1 node test/chrome-integration.mjs
+```
+
+前者依次运行旧历史策略与新策略，使用本机回环页面、固定截图和 32MiB 页面内存，
+检查冻结文档恢复、历史条目、渲染进程、Linux 私有内存和图片哈希。
+在 1GB VM 上不要同时启动生产浏览器与测试浏览器；维护窗口内顺序执行，结束后恢复服务。
+`retainHistory` 仅供内部对照测试使用，生产默认关闭，没有公开 API 开关。
+
+参考：[Chrome BFCache](https://web.dev/articles/bfcache)、
+[Google Chrome 自动化参数说明](https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md)。
+
 参考：[Linux zswap](https://docs.kernel.org/admin-guide/mm/zswap.html)、
 [PSI 压力指标](https://docs.kernel.org/accounting/psi.html)、
 [Chromium 原生共享内存实现](https://chromium.googlesource.com/chromium/src/base/+/a2890140a9daeccc26b86b9f54332d4db988a74d%5E%21/)。
