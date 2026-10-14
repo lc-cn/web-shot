@@ -1,0 +1,60 @@
+docs/api.md
+  s_c757df74f34330::t_34e11b225caab2 114-115
+  s_c757df74f34330::t_bda058beb84bbf 112-113,116
+edge/cache.mjs
+  s_c757df74f34330::t_9221e87d1e9d7e 1-2,22
+test/cache-scope.test.mjs
+  s_c757df74f34330::t_6d38e51e6eea6b 7,9-11
+  s_c757df74f34330::t_34e11b225caab2 18-21
+  s_c757df74f34330::t_9221e87d1e9d7e 1-6,8,12-17,22-27
+protocol.mjs
+  s_c757df74f34330::t_6d38e51e6eea6b 19-20
+  s_c757df74f34330::t_9221e87d1e9d7e 9-18,21-22
+core.mjs
+  s_c757df74f34330::t_9221e87d1e9d7e 5,35
+test/service.test.mjs
+  s_c757df74f34330::t_9c0a28488c9245 134
+  s_c757df74f34330::t_a52c18d63b4e77 182-189
+dispatcher.mjs
+  s_c757df74f34330::t_9c0a28488c9245 81-86
+test/cache-isolation-integration.mjs
+  s_c757df74f34330::t_9c0a28488c9245 1-16,18-25,28-43
+  s_c757df74f34330::t_6d38e51e6eea6b 17,26-27
+docs/operations.md
+  s_c757df74f34330::t_dcf606c620f4df 184,186
+  s_c757df74f34330::t_34e11b225caab2 185,187-189
+docs/production.md
+  s_c757df74f34330::t_dcf606c620f4df 154-161,164,167-168,170-172
+  s_c757df74f34330::t_34e11b225caab2 162-163,165-166,169
+  s_c757df74f34330::t_7cac6160b1f0a7 173-178
+renderer.mjs
+  s_c757df74f34330::t_9c0a28488c9245 22
+README.md
+  s_c757df74f34330::t_bda058beb84bbf 50,54-55
+docs/cold-navigation-research.md
+  s_c757df74f34330::t_34e11b225caab2 52-54
+  s_c757df74f34330::t_11fc8eb164522e 96-118
+  s_c757df74f34330::t_77621a664eae14 1-10,15-25,28-36,58-61,63-95,119-121
+  s_c757df74f34330::t_bc6163535631cc 11-14,26-27
+  s_c757df74f34330::t_e2f2e1617a1723 37-46,62
+  s_c757df74f34330::t_bda058beb84bbf 47-51,55-57
+test/chrome-integration.mjs
+  s_c757df74f34330::t_9c0a28488c9245 36,44,71,75-77,79
+  s_c757df74f34330::t_9221e87d1e9d7e 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "646e9a418476f9e3440b3b9496469a64640e3fea",
+  "prompts": {},
+  "sessions": {
+    "s_c757df74f34330": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12dff-8ae7-74d0-a196-b18b1c903d7a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Class Liu <chunlang.liu@rdc-west.com>"
+    }
+  }
+}
