@@ -1,0 +1,52 @@
+docs/operations.md
+  s_c757df74f34330::t_d5df63290dc82b 86-88,90-111,113-117
+  s_c757df74f34330::t_a0edf19559e3e1 89,112
+public/index.html
+  s_c757df74f34330::t_0603c6dd19db52 2,28
+docs/production.md
+  s_c757df74f34330::t_ecf72c56f5c176 39,44-77
+deploy/tune-small-vm.sh
+  s_c757df74f34330::t_d5df63290dc82b 1-27
+test/renderer-settings.test.mjs
+  s_c757df74f34330::t_36d299d316f862 1-13
+renderer.mjs
+  s_c757df74f34330::t_a0edf19559e3e1 149-152
+  s_c757df74f34330::t_01c5e1cb3dc98d 12,19-21,58-74,107,122-125,155
+test/service.test.mjs
+  s_c757df74f34330::t_44e01e9abd89b6 62,67,70-72,74-75,127-149
+  s_c757df74f34330::t_a0edf19559e3e1 68-69,73
+test/chrome-integration.mjs
+  s_c757df74f34330::t_a0edf19559e3e1 26,28,37,39
+  s_c757df74f34330::t_eda1e44fe51bf5 4-6,11-15,73
+README.md
+  s_c757df74f34330::t_a0edf19559e3e1 16
+.env.example
+  s_c757df74f34330::t_01c5e1cb3dc98d 8-11
+server.mjs
+  s_c757df74f34330::t_783d95799dfd8e 22,64
+  s_c757df74f34330::t_eda1e44fe51bf5 20-21
+dispatcher.mjs
+  s_c757df74f34330::t_783d95799dfd8e 9,11,14-32,54,74,76,78-79,85,116-117
+  s_c757df74f34330::t_36d299d316f862 13
+public/dashboard.js
+  s_c757df74f34330::t_01c5e1cb3dc98d 70,74
+memory.mjs
+  s_c757df74f34330::t_783d95799dfd8e 3-4,12,14,17,20,23-25,28
+  s_c757df74f34330::t_a0edf19559e3e1 18-19,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d012edf6fb72ee9ccb289a028e6dc6fc8736548",
+  "prompts": {},
+  "sessions": {
+    "s_c757df74f34330": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12dff-8ae7-74d0-a196-b18b1c903d7a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Class Liu <chunlang.liu@rdc-west.com>"
+    }
+  }
+}
