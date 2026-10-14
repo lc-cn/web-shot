@@ -1,5 +1,6 @@
 import puppeteer, { KnownDevices } from 'puppeteer-core';
 import { assertPublicURL, devices, HttpError } from './core.mjs';
+import { sampleHardware,hardwareWindow,navigationBreakdown } from './diagnostics.mjs';
 
 export class ChromeRenderer {
   constructor(memory, { validateURL=assertPublicURL } = {}) {
@@ -111,15 +112,18 @@ export class ChromeRenderer {
   }
   async render(options, slot) {
     const started = performance.now();
-    const stages={};let mark=started;
-    const stage=name=>{const now=performance.now();stages[name]=now-mark;mark=now;};
-    await this.validateURL(options.url);
-    stage('validate');
-    if (new URL(options.url).hostname === (process.env.PUBLIC_HOST || 'shot.l2cl.link')) throw new HttpError(400, 'RECURSIVE_TARGET', '不能截图服务自身');
+    const hardwareStart=sampleHardware(),activeStart=this.slots.filter(item=>item.running).length;
+    const stages={},waits={network_idle_timeout:null,lazy_idle_timeout:null,font_timeout:null};let mark=started,pending='validate',network=null;
+    const next={validate:'setup',setup:'navigation',navigation:'resources',resources:'capture',capture:null};
+    const stage=name=>{const now=performance.now();stages[name]=now-mark;mark=now;pending=next[name];};
+    const diagnostics=()=>({network,waits,hardware:{...hardwareWindow(hardwareStart,sampleHardware()),active_at_start:activeStart,
+      active_at_end:this.slots.filter(item=>item.running).length}});
     const { page } = slot;
     let deadline;
     try {
       const task = async () => {
+        await this.validateURL(options.url);stage('validate');
+        if (new URL(options.url).hostname === (process.env.PUBLIC_HOST || 'shot.l2cl.link')) throw new HttpError(400, 'RECURSIVE_TARGET', '不能截图服务自身');
         slot.forward=options; slot.navigationSent=false;
         const preset = devices[options.device];
         await page.setViewport({ width: options.width, height: options.height, deviceScaleFactor: 1,
@@ -134,7 +138,7 @@ export class ChromeRenderer {
         const response = await page.goto(options.url, { waitUntil: 'domcontentloaded' });
         stage('navigation');
         if (response && response.status() >= 400) throw new HttpError(502, 'TARGET_HTTP_ERROR', `目标网站返回 HTTP ${response.status()}`);
-        await page.waitForNetworkIdle({ idleTime: 120, concurrency: 2, timeout: 1200 }).catch(() => {});
+        waits.network_idle_timeout=await page.waitForNetworkIdle({ idleTime:120,concurrency:2,timeout:1200 }).then(()=>false,()=>true);
         let scrolled=false;
         if (options.fullPage) {
           scrolled=await page.evaluate(async () => {
@@ -149,11 +153,23 @@ export class ChromeRenderer {
         }
         // Font readiness and lazy-image settling can proceed concurrently. Pages with no lazy images
         // already completed the first idle wait, so avoid an unconditional second delay.
-        await Promise.all([
-          scrolled?page.waitForNetworkIdle({ idleTime:80,concurrency:2,timeout:500 }).catch(()=>{}):Promise.resolve(),
-          page.evaluate(() => Promise.race([document.fonts.ready,new Promise(resolve=>setTimeout(resolve,500))])),
+        const [lazyTimeout,fontTimeout]=await Promise.all([
+          scrolled?page.waitForNetworkIdle({ idleTime:80,concurrency:2,timeout:500 }).then(()=>false,()=>true):Promise.resolve(false),
+          page.evaluate(() => Promise.race([document.fonts.ready.then(()=>false),new Promise(resolve=>setTimeout(()=>resolve(true),500))])),
         ]);
+        waits.lazy_idle_timeout=lazyTimeout;waits.font_timeout=fontTimeout;
         stage('resources');
+        // Select only numeric timing fields: never persist navigation URLs, headers or response content.
+        try {
+          network=navigationBreakdown(await page.evaluate(()=>{
+            const entry=performance.getEntriesByType('navigation')[0];if(!entry)return null;
+            const fields=Object.fromEntries(['domainLookupStart','domainLookupEnd','connectStart','connectEnd','secureConnectionStart',
+              'requestStart','responseStart','responseEnd','domContentLoadedEventEnd'].map(key=>[key,entry[key]]));
+            const resources=performance.getEntriesByType('resource');
+            fields.resourceCount=resources.length;fields.longestResourceMs=Math.max(0,...resources.slice(0,2000).map(item=>item.duration));
+            return fields;
+          }));
+        }catch{}
         const contentHeight = await page.evaluate(() => Math.max(document.body?.scrollHeight || 0, document.documentElement.scrollHeight));
         const height = options.fullPage ? Math.max(options.height, contentHeight) : options.height;
         if (height > 30000 || height * options.width > 30_000_000) {
@@ -163,11 +179,15 @@ export class ChromeRenderer {
         const image = Buffer.from(await page.screenshot({ type:'png',
           clip:{ x:0,y:0,width:options.width,height }, captureBeyondViewport:true }));
         stage('capture');
-        return { image, renderMs: performance.now() - started, imageHeight: height, contentType: 'image/png',stages };
+        return { image, renderMs: performance.now() - started, imageHeight: height, contentType: 'image/png',stages,diagnostics:diagnostics() };
       };
       return await Promise.race([task(), new Promise((_, reject) => {
         deadline = setTimeout(() => { slot.tainted=true; reject(new HttpError(504, 'RENDER_TIMEOUT', '截图超时，请稍后重试')); }, 25_000);
       })]);
+    } catch(error) {
+      if(pending)stages[pending]=performance.now()-mark;
+      error.renderMs=performance.now()-started;error.stages=stages;error.diagnostics=diagnostics();
+      throw error;
     } finally {
       clearTimeout(deadline);
 

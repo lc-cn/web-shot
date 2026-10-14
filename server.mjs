@@ -12,6 +12,7 @@ import { authorized,edgeRow } from './edge-record.mjs';
 import { cacheKey } from './core.mjs';
 import { createHash } from 'node:crypto';
 import { publicRequest } from './edge/cache.mjs';
+import { sampleHardware,hardwareWindow } from './diagnostics.mjs';
 
 const dbPath = process.env.DB_PATH || './data/requests.sqlite';
 await mkdir(dirname(dbPath), { recursive: true, mode: 0o700 });
@@ -25,6 +26,7 @@ const assets = new Map(['/', '/dashboard.js', '/style.css'].map(path => [path, {
   type: path === '/' ? 'text/html; charset=utf-8' : path.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8',
 }]));
 let statsMemo, statsAt = 0;
+let hardwarePrevious=sampleHardware();
 const json = (res, status, value) => {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(value));
@@ -53,10 +55,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') return json(res, 405, { error: 'METHOD_NOT_ALLOWED' });
     try {
       if (!statsMemo || Date.now() - statsAt > 5000) { statsMemo = await store.stats(); statsAt = Date.now(); }
+      const hardwareNow=sampleHardware(),hardware=hardwareWindow(hardwarePrevious,hardwareNow);hardwarePrevious=hardwareNow;
       return json(res, 200, { ...statsMemo, runtime: { browser_ready: !!renderer.browser?.connected && renderer.warmedOnce,
         browser_launches: renderer.launches, active_pages: shots.queue.active, queued: shots.queue.queue.length,
         concurrency: shots.queue.concurrency, warm_pages: memory.warm, max_pages: memory.max,
-        ready_pages: renderer.slots.filter(slot => slot.ready).length, memory: memory.snapshot(),
+        ready_pages: renderer.slots.filter(slot => slot.ready).length, memory: memory.snapshot(),hardware,
         idle_blank_pages:renderer.slots.filter(slot=>slot.ready && slot.page?.url()==='about:blank').length,
         page_queues:dispatcher.stats(),
         peak_pages: shots.queue.peak, cache_items: shots.cache.items.size,
@@ -78,6 +81,7 @@ const server = http.createServer(async (req, res) => {
     row.status = 200; row.cache = result.mode; row.renderMs = result.renderMs;
     row.queueMs = result.queueMs; row.bytes = result.image.length;
     row.stages=result.mode==='MISS'||result.mode==='REFRESH'?result.stages:null;
+    row.diagnostics=row.stages?result.diagnostics:null;
     const stages=row.stages?Object.entries(row.stages).map(([name,ms])=>`${name};dur=${ms.toFixed(1)}`).join(', ')+', ':'';
     res.writeHead(200, { 'Content-Type': result.contentType, 'Content-Length': result.image.length,
       'Cache-Control': publicRequest(options)?'public, max-age=0, must-revalidate':'private, no-store',
@@ -94,6 +98,7 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     const status = error instanceof HttpError ? error.status : error.name === 'TimeoutError' ? 504 : 502;
     row.status = status; row.error = error.code || (status === 504 ? 'RENDER_TIMEOUT' : 'RENDER_FAILED');
+    row.stages=error.stages || null;row.diagnostics=error.diagnostics || null;row.renderMs=error.renderMs || 0;
     row.totalMs = performance.now() - started;
     if (status === 503) res.setHeader('Retry-After', '5');
     json(res, status, { error: row.error, message: error instanceof HttpError ? error.message : '目标网站渲染失败或超时' });

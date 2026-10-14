@@ -14,14 +14,16 @@ export class RequestStore {
       CREATE INDEX IF NOT EXISTS requests_time ON requests(time);`);
     if (!this.db.prepare('PRAGMA table_info(requests)').all().some(column=>column.name==='method')) this.db.exec("ALTER TABLE requests ADD COLUMN method TEXT NOT NULL DEFAULT 'GET'");
     const columns=this.db.prepare('PRAGMA table_info(requests)').all().map(column=>column.name);
-    for(const column of ['event_id','stages']) if(!columns.includes(column)) this.db.exec(`ALTER TABLE requests ADD COLUMN ${column} TEXT`);
+    for(const column of ['event_id','stages','diagnostics']) if(!columns.includes(column)) this.db.exec(`ALTER TABLE requests ADD COLUMN ${column} TEXT`);
     this.db.exec('CREATE UNIQUE INDEX IF NOT EXISTS requests_event_id ON requests(event_id) WHERE event_id IS NOT NULL');
-    this.insert = this.db.prepare('INSERT OR IGNORE INTO requests(time,ip,country,target,device,width,height,status,cache,render_ms,total_ms,queue_ms,bytes,error,method,event_id,stages) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    this.insert = this.db.prepare('INSERT OR IGNORE INTO requests(time,ip,country,target,device,width,height,status,cache,render_ms,total_ms,queue_ms,bytes,error,method,event_id,stages,diagnostics) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     this.summary = this.db.prepare(`SELECT count(*) AS total, sum(status=200) AS success,
       sum(cache IN ('HIT','COALESCED','EDGE-HIT')) AS cached, sum(cache='EDGE-HIT') AS edge_cached, round(avg(total_ms),1) AS average_ms,
       round(avg(CASE WHEN cache IN ('MISS','REFRESH') AND status=200 THEN render_ms END),1) AS render_average_ms
       FROM requests WHERE time>=?`);
-    this.recent = this.db.prepare('SELECT time,ip,country,target,method,device,width,height,status,cache,stages,round(render_ms,1) AS render_ms,round(total_ms,1) AS total_ms FROM requests ORDER BY id DESC LIMIT 20');
+    const fields='time,ip,country,target,method,device,width,height,status,cache,stages,diagnostics,queue_ms,round(render_ms,1) AS render_ms,round(total_ms,1) AS total_ms';
+    this.recent = this.db.prepare('SELECT '+fields+' FROM requests ORDER BY id DESC LIMIT 20');
+    this.renderDiagnostics=this.db.prepare('SELECT '+fields+' FROM requests WHERE stages IS NOT NULL ORDER BY id DESC LIMIT 20');
     this.countries = this.db.prepare('SELECT country,count(*) AS count FROM requests WHERE time>=? GROUP BY country ORDER BY count DESC LIMIT 8');
     this.hourly = this.db.prepare("SELECT substr(time,1,13) AS hour,count(*) AS count FROM requests WHERE time>=? GROUP BY hour ORDER BY hour");
     this.tail = this.db.prepare("SELECT render_ms FROM requests WHERE time>=? AND status=200 AND cache IN ('MISS','REFRESH') ORDER BY render_ms LIMIT 1 OFFSET ?");
@@ -29,7 +31,7 @@ export class RequestStore {
   }
   record(row) {
     this.insert.run(row.time, row.ip, row.country, row.target, row.device, row.width, row.height,
-      row.status, row.cache, row.renderMs, row.totalMs, row.queueMs, row.bytes, row.error ?? null,row.method || 'GET',row.eventId || null,row.stages?JSON.stringify(row.stages):null);
+      row.status, row.cache, row.renderMs, row.totalMs, row.queueMs, row.bytes, row.error ?? null,row.method || 'GET',row.eventId || null,row.stages?JSON.stringify(row.stages):null,row.diagnostics?JSON.stringify(row.diagnostics):null);
   }
   stats() {
     const since = new Date(Date.now() - 86400_000).toISOString();
@@ -37,10 +39,11 @@ export class RequestStore {
     return { all: this.summary.get(''), day: { ...this.summary.get(since),
       render_p95_ms: count ? Math.round(this.tail.get(since, Math.ceil(count * 0.95) - 1).render_ms) : null },
       countries: this.countries.all(since), hourly: this.hourly.all(since),
-      recent: this.recent.all().map(row => ({ ...row, ip: maskedIP(row.ip), stages:row.stages?JSON.parse(row.stages):null })) };
+      recent: this.recent.all().map(expose),render_diagnostics:this.renderDiagnostics.all().map(expose) };
   }
   close() { this.db.close(); }
 }
+function expose(row){return {...row,ip:maskedIP(row.ip),stages:row.stages?JSON.parse(row.stages):null,diagnostics:row.diagnostics?JSON.parse(row.diagnostics):null};}
 export class AsyncRequestStore {
   constructor(path) {
     this.worker = new Worker(new URL('./store-worker.mjs', import.meta.url), { workerData: { path } });

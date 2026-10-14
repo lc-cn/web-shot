@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css"><script src="/dashboard.js?v=edge1" defer></script></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>URLSHOT · API 与数据</title><link rel="stylesheet" href="/style.css?v=diagnostics2"><script src="/dashboard.js?v=diagnostics2" defer></script></head>
 <body><main>
 <header><a href="/" class="brand">URLSHOT<span>网页截图 API</span></a><span id="state" class="state">连接中</span></header>
 <section class="intro"><p class="eyebrow">URL → PNG</p><h1>一个网址，一张截图。</h1><p class="lead">支持 GET、POST、DELETE、PATCH，透传业务 Header 和 Body。默认 PC 视图，自动截取整页高度。</p>
@@ -18,6 +18,12 @@ curl 'https://shot.l2cl.link/example.com?$device=pad&amp;$width=820&amp;$height=
 </section>
 <section class="dashboard"><div class="section-title"><h2>运行数据 <span>最近 24 小时</span></h2><span id="updated">—</span></div>
 <div class="metrics"><article><span>请求量</span><strong id="requests">—</strong><small id="total">累计 —</small></article><article><span>成功率</span><strong id="success">—</strong><small>HTTP 200</small></article><article><span>缓存 / 合并命中率</span><strong id="cached">—</strong><small id="cache-details">避免重复渲染</small></article><article><span>平均渲染耗时</span><strong id="render">—</strong><small id="p95">P95 — · 仅实际渲染</small></article></div>
+<section class="diagnostic-panel" aria-labelledby="diagnostic-title">
+<div class="section-title"><h2 id="diagnostic-title">耗时诊断</h2><label for="diagnostic-request">选择最近实际渲染 <select id="diagnostic-request"><option>等待记录</option></select></label></div>
+<p id="diagnostic-summary" class="note">等待分段数据；缓存命中不会启动 Chrome。</p>
+<div class="diagnostic-grid"><article><h3>服务处理阶段</h3><div id="stage-breakdown">暂无数据</div></article><article><h3>主文档网络与页面就绪</h3><div id="network-breakdown">新渲染将显示网络数据</div><p class="note">这是导航阶段的子集，不能与左侧重复相加。首字节包含网络往返与目标站处理；0ms 可能来自连接/缓存复用。</p></article></div>
+<div class="diagnostic-grid"><article><h3>本次渲染窗口的服务器资源</h3><div id="request-hardware">历史记录未采集硬件指标</div><p class="note">CPU 计量覆盖整个服务，含同期并发任务和后台清理；没有把等待时间当作 CPU 时间。</p></article><article><h3>服务器实时资源</h3><div id="live-hardware">等待采样</div><p class="note">CPU 取上次看板采样至本次的增量；Steal 表示虚拟机等待宿主机分配 CPU。时间很短时，百分比仅供参考。</p></article></div>
+</section>
 <div class="charts"><article><h3>每小时请求</h3><div id="hours" class="bars" aria-label="最近24小时请求量"></div><div class="axis"><span>24 小时前</span><span>现在</span></div></article><article><h3>请求地区</h3><div id="countries" class="countries">暂无数据</div></article></div>
 <div class="runtime"><span>Chrome <b id="chrome">—</b></span><span>并发 Page <b id="pages">—</b></span><span>排队 <b id="queue">—</b></span><span>缓存 <b id="cache">—</b></span></div>
 <div id="page-queues" class="runtime"></div><div class="section-title"><h3>最近请求</h3><span>IP 脱敏展示 · 时间为浏览器本地时间</span></div>

@@ -25,6 +25,9 @@ const make=(method,device='pc',auth='fixture-token')=>({...optionsFromRequest('/
 async function render(options,check){
   return dispatcher.run(async(_,slot)=>{
     const result=await renderer.render(options,slot);
+    assert.ok(result.diagnostics.network.ttfb_ms>=0);
+    assert.ok(Number.isInteger(result.diagnostics.network.resource_count)&&result.diagnostics.network.resource_count>=0);
+    assert.equal('name' in result.diagnostics.network,false);
     const data=JSON.parse(await slot.page.$eval('#echo',element=>element.textContent));
     assert.equal(data.method,options.method);assert.equal(data.body,payload.toString('hex'));
     assert.equal(data.headers.authorization,options.headers.authorization);assert.equal(data.headers['x-fixture'],'header-ok');

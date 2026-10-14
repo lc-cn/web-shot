@@ -3,11 +3,64 @@ const names = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
 const country = code => ['XX','T1'].includes(code) ? '未知' : names.of(code) || code;
 const percent = (n, all) => all ? (100 * (n || 0) / all).toFixed(1) + '%' : '—';
 const ms = value => value == null ? '—' : value >= 1000 ? (value / 1000).toFixed(2) + ' s' : Math.round(value) + ' ms';
+let diagnosticRows=[];
+const pct=value=>value==null?'—':value.toFixed(1)+'%';
+function pairs(element,values) {
+  element.replaceChildren(...values.map(([name,value])=>{
+    const row=document.createElement('div');row.className='diagnostic-pair';
+    const label=document.createElement('span'),data=document.createElement('b');label.textContent=name;data.textContent=value;
+    row.append(label,data);return row;
+  }));
+}
+function hardware(element,data) {
+  if(!data){element.textContent='此历史记录未采集硬件指标；新的实际渲染会自动采集。';return;}
+  pairs(element,[['采样窗口',ms(data.window_ms)],['全服务 CPU 时间',ms(data.service_cpu_ms)],
+    ['整机 CPU 忙碌 / Steal',pct(data.cpu_busy_pct)+' / '+pct(data.steal_pct)],
+    ['CPU 调度等待 / 内存压力',pct(data.cpu_pressure_pct)+' / '+pct(data.memory_pressure_pct)],
+    ['整机 I/O 等待 / 服务 I/O 阻塞',pct(data.io_wait_pct)+' / '+pct(data.service_io_pressure_pct)],
+    ['CPU 限流时间',ms(data.throttled_ms)],['Swap 换入 / 换出页数',String(data.swap_in_pages??'—')+' / '+String(data.swap_out_pages??'—')],
+    ['服务磁盘读 / 写',(data.service_read_mb??'—')+' / '+(data.service_write_mb??'—')+' MB'],
+    ['服务主缺页 / 已用 Swap',String(data.service_major_faults??'—')+' / '+String(data.service_swap_mb??'—')+' MB'],
+    ['内存限流事件 / OOM',String(data.memory_high_events??'—')+' / '+String(data.oom_kills??'—')],
+    ['系统可用 / 服务内存',(data.available_mb??'—')+' / '+(data.service_mb??'—')+' MB']]);
+}
+function renderDiagnostic() {
+  const row=diagnosticRows.find(item=>item.time===$('diagnostic-request').value);
+  if(!row){$('diagnostic-summary').textContent='暂无实际渲染分段；缓存命中不会启动 Chrome。';return;}
+  const stages=[['queue','排队',row.queue_ms],['validate','公网地址 / DNS 校验',row.stages?.validate],['setup','Page 设置',row.stages?.setup],
+    ['navigation','导航至 DOM 就绪',row.stages?.navigation],['resources','图片 / 字体 / 等待',row.stages?.resources],['capture','截图 / PNG 编码',row.stages?.capture]];
+  const sum=stages.reduce((total,[,,value])=>total+(value||0),0);
+  $('stage-breakdown').replaceChildren(...stages.map(([key,name,value])=>{
+    const item=document.createElement('div');item.className='diagnostic-stage';
+    const label=document.createElement('div');label.className='diagnostic-pair';
+    const text=document.createElement('span'),duration=document.createElement('b');text.textContent=name;duration.textContent=ms(value);
+    label.append(text,duration);const track=document.createElement('div');track.className='diagnostic-track';
+    const bar=document.createElement('div');bar.className='diagnostic-fill '+key;bar.style.width=(sum?Math.max(0,value||0)/sum*100:0)+'%';
+    track.append(bar);item.append(label,track);return item;
+  }));
+  const largest=stages.filter(([, ,v])=>v!=null).sort((a,b)=>b[2]-a[2])[0];
+  $('diagnostic-summary').textContent=`${new Date(row.time).toLocaleString()} · ${row.method} ${row.target} · ${row.status} ${row.cache} · 渲染 ${ms(row.render_ms)} · 服务响应 ${ms(row.total_ms)}${largest?' · 最长阶段：'+largest[1]+' '+ms(largest[2]):''}`;
+  const network=row.diagnostics?.network;
+  if(network)pairs($('network-breakdown'),[['DNS',ms(network.dns_ms)],['TCP 连接',ms(network.tcp_ms)],['TLS 握手',ms(network.tls_ms)],
+    ['目标首字节 TTFB',ms(network.ttfb_ms)],['主文档下载',ms(network.download_ms)],['下载后到 DOM 就绪',ms(network.dom_ready_ms)],
+    ['已完成资源 / 最慢单个资源',String(network.resource_count??'—')+' / '+ms(network.longest_resource_ms)],
+    ['网络 / 懒加载 / 字体等待达到上限',[row.diagnostics?.waits?.network_idle_timeout,row.diagnostics?.waits?.lazy_idle_timeout,row.diagnostics?.waits?.font_timeout].map(value=>value==null?'—':value?'是':'否').join(' / ')]]);
+  else $('network-breakdown').textContent='此记录没有网络细分；新渲染会采集。导航失败或浏览器不可用时可能缺失。';
+  hardware($('request-hardware'),row.diagnostics?.hardware);
+}
+$('diagnostic-request').addEventListener('change',renderDiagnostic);
 async function update() {
   try {
     const response = await fetch('/api/stats', { cache: 'no-store' });
     if (!response.ok) throw new Error();
     const data = await response.json(), day = data.day, runtime = data.runtime;
+    const selected=$('diagnostic-request').value,oldLatest=diagnosticRows[0]?.time;
+    diagnosticRows=data.render_diagnostics || data.recent.filter(row=>row.stages);
+    $('diagnostic-request').replaceChildren(...diagnosticRows.map(row=>{
+      const option=document.createElement('option');option.value=row.time;option.textContent=new Date(row.time).toLocaleTimeString()+' · '+row.target+' · '+ms(row.render_ms);return option;
+    }));
+    if(selected!==oldLatest && diagnosticRows.some(row=>row.time===selected))$('diagnostic-request').value=selected;
+    renderDiagnostic();hardware($('live-hardware'),runtime.hardware);
     $('state').textContent = runtime.browser_ready ? '服务在线' : 'Chrome 恢复中';
     $('requests').textContent = day.total.toLocaleString(); $('total').textContent = '累计 ' + data.all.total.toLocaleString();
     $('success').textContent = percent(day.success, day.total); $('cached').textContent = percent(day.cached, day.total);

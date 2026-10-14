@@ -83,3 +83,16 @@ wrangler deploy --config edge/wrangler.jsonc
 官方依据：[Workers Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/)、[Durable Objects](https://developers.cloudflare.com/durable-objects/)、[Puppeteer 等待机制](https://pptr.dev/api/puppeteer.waitfornetworkidleoptions)。
 
 2026-10-14 验收样本（example.com）：同一连接边缘命中完整图片 0.315s、0.311s；默认 GET 复用连接 0.384s，另一次新连接 1.346s。强制刷新完整请求 5.675s，其中实际渲染 4.233s。样本数量较少，不能代表所有网站或所有网络。边缘缓存首次填充仍需回源。17 项回归通过，本机独立真实 Chrome 验证四种 Method、二进制 Body 和鉴权隔离；线上已验证 EDGE-HIT、REFRESH、统计回写和 5 个预热 Page。
+
+## 可见的耗时与资源诊断
+
+首页的“耗时诊断”可选择最近 20 次有分段数据的渲染，包括失败时已完成的阶段。缓存命中不覆盖最近实际渲染记录。
+
+- 服务阶段：排队、公网地址/DNS 校验、Page 设置、导航、资源等待、截图/PNG 编码。
+- 浏览器导航：DNS、TCP、TLS、目标首字节、主文档下载、DOM 就绪、已完成资源数量和最慢资源时长。只采集数字，不记录资源 URL 或业务信息。导航细分是服务导航阶段的子集，不能重复相加。
+- 渲染窗口硬件：整个服务的 CPU 时间、整机忙碌/Steal/I/O 等待、CPU/内存/服务 I/O 压力、swap 换入换出、cgroup 磁盘读写及主缺页、内存限制和 OOM。计量覆盖同期并发渲染与清理，不能当成该 Page 独占的 CPU 时间。
+- 实时指标取两个看板采样之间的增量。字段为 `null` 时显示“—”，表示当前系统没有提供对应计数，不表示 0。旧记录只能显示已有分段；新指标从本次更新开始采集。
+
+TTFB 包含网络往返和目标站处理；DOM 就绪等待还可能包含脚本、CSS、资源加载。CPU 时间低但墙钟时间高并不能单独证明网络慢，应同时看 I/O 等待、主缺页、swap 和资源加载。缓存命中时客户端慢也可能发生在客户端与 Cloudflare 之间，不应归因于 Chrome。
+
+官方指标定义：[Navigation Timing](https://www.w3.org/TR/navigation-timing-2/)、[Linux cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)、[PSI](https://docs.kernel.org/accounting/psi.html)。
